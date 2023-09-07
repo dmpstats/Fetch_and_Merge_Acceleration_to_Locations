@@ -7,7 +7,7 @@ Github repository: <https://github.com/dmpstats/Fetch_and_Derive_Acceleration_in
 ## Description
 
 Retrieves available acceleration data for individuals present in the input
-location data and binds acceleration measuremets to each observed location based
+location data and binds acceleration measurements to each observed location based
 on recorded time.
 
 ## Documentation
