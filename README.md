@@ -2,7 +2,7 @@
 
 MoveApps
 
-Github repository: <https://github.com/dmpstats/Fetch_and_Derive_Acceleration_in_Locations>
+Github repository: <https://github.com/dmpstats/Fetch_and_Derive_Acceleration_to_Locations>
 
 ## Description
 
