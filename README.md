@@ -24,17 +24,17 @@ present in input data;
 
 3. Downloads sought accelerometer data via move2::download_study_data;
 
-4. Pre-processes acceleration data, including in some cases/tags averaging out
-multiple acceleration values recorded per single observation;
+4. Pre-processes acceleration data, including averaging out multiple
+acceleration values recorded per single observation in some of the tags;
 
 5. Binds acceleration data, consisting of measurements at 3 accelerometer axis,
 to each location event in the input dataset based on individual, day and time of
 the day. Binding currently uses a non-linear (GAM) acceleration-given-time
-relationship fitted internally to the downloaded accelerometer dataset -
+relationship fitted internally on-the-fly to the downloaded accelerometer dataset -
 however, this step will be revised to favor a potentially more simplistic
-approach (e.g. interpolation)
+approach (e.g. interpolation);
 
-6. Outputs location data with associated acceleration measurements
+6. Outputs location data with associated acceleration measurements.
 
 
 **Note**: This App is a workaround for the current restriction on MoveApps to
