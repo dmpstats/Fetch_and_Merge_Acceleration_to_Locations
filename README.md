@@ -22,7 +22,7 @@ present in input data;
 
 2. Checks availability of accelerometer data for each individual and timeframe;
 
-3. Downloads sought accelerometer data via move2::download_study_data;
+3. Downloads sought accelerometer data via `move2::download_study_data()`;
 
 4. Pre-processes acceleration data, including averaging out multiple
 acceleration values recorded per single observation in some of the tags;
