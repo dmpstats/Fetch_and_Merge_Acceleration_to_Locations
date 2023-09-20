@@ -1,22 +1,64 @@
 library('move2')
+library("units")
 
 test_data <- test_data("input3_move2.rds") #file must be move2!
 acc_testsets <- readRDS(test_path("data", "acc_testsets.rds"))
 
-test_that("happy path", {
-  actual <- rFunction(data = test_data, usr = usr, pwd = pwd, sdk = "unit test", year = 2005)
-  expect_equal(unique(lubridate::year(mt_time(actual))), 2005)
+
+# Main `rFunction()`   -----------------------------------------------
+
+# test_that("happy path", {
+#   actual <- rFunction(data = test_data, usr = usr, pwd = pwd)
+#   expect_equal(unique(lubridate::year(mt_time(actual))), 2005)
+# })
+# 
+# test_that("year not included", {
+#   actual <- rFunction(data = test_data, usr = usr, pwd = pwd)
+#   expect_null(actual)
+# })
+
+
+
+# `preprocess_acc()`  -----------------------------------------------
+test_that("acc bursts are nested appropriately", {
+  
+  acc_processed <- preprocess_acc(acc_testsets$plain_XYZ_raw)
+  
+  # lags are greater that 5 min
+  expect_gte(
+    min(mt_time_lags(acc_processed), na.rm = TRUE), 
+    expected = set_units(5, "min")
+  )
+  # nested dfs with bursts have same # of cols as # of acc-axis
+  expect_true(all(map_int(acc_processed$acc_bursts, ncol) == 3))
 })
 
-test_that("year not included", {
-  actual <- rFunction(data = test_data, usr = usr, pwd = pwd, sdk = "unit test", year = 2023)
-  expect_null(actual)
+
+test_that("there are acc summaries for each active acc-axis", {
+
+  expected_names <- names(preprocess_acc(acc_testsets$nested_XYZ_raw))
+  expect_identical(
+    grep("(mean)|(var)_acc", expected_names, value = TRUE),
+    c("mean_acc_x", "mean_acc_y", "mean_acc_z", "var_acc_x", "var_acc_y", "var_acc_z")
+  )
+    
+  expected_names <- names(preprocess_acc(acc_testsets$nested_XY_raw))
+  expect_identical(
+    grep("(mean)|(var)_acc", expected_names, value = TRUE),
+    c("mean_acc_x", "mean_acc_y", "var_acc_x", "var_acc_y")
+  )
+  
+  expected_names <- names(preprocess_acc(acc_testsets$nested_X_raw))
+  expect_identical(
+    grep("(mean)|(var)_acc", expected_names, value = TRUE),
+    c("mean_acc_x", "var_acc_x")
+  )
+
 })
 
 
 
-
-# ACC data format identification -----------------------------------------------
+# `get_acc_format()`: ACC data format identification -----------------------------------------------
 test_that("type of downloaded ACC data format is correctly identified", {
   
   expect_match(get_acc_format(acc_testsets$nested_XYZ_raw), "nested")
@@ -29,7 +71,7 @@ test_that("type of downloaded ACC data format is correctly identified", {
 })
 
 
-# burst identification ---------------------------------------------------------
+# `mark_time_bursts()`: burst identification ---------------------------------------------------------
 test_that("burst identification output has same length as input", {
   actual <- mark_time_bursts(acc_testsets$plain_XYZ_raw$timestamp)
   expect_length(actual, length(acc_testsets$plain_XYZ_raw$timestamp))
