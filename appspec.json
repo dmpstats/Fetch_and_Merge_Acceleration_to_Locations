@@ -1,20 +1,6 @@
 {
   "settings": [
     {
-      "id": "sdk",
-      "name": "The name of the MoveApps SDK",
-      "description": "Showcase requesting a string input from the users of your app.",
-      "defaultValue": "MoveApps SDK",
-      "type": "STRING"
-    },
-    {
-      "id": "year",
-      "name": "The year",
-      "description": "Insert description for the year setting setting",
-      "defaultValue": 2022,
-      "type": "INTEGER"
-    },
-    {
       "id": "usr",
       "name": "Movebank username",
       "description": "Type-in the username of your Movebank account",
