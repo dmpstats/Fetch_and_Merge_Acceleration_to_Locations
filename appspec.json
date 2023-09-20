@@ -15,10 +15,18 @@
       "type": "INTEGER"
     },
     {
-      "id": "yourLocalFileSettingId",
-      "name": "Personalization",
-      "description": "You can personalize the dashboard by providing a file named 'sample.txt'",
-      "type": "LOCAL_FILE"
+      "id": "usr",
+      "name": "Movebank username",
+      "description": "Type-in the username of your Movebank account",
+      "defaultValue": "",
+      "type": "STRING"
+    },
+    {
+      "id": "psw",
+      "name": "Movebank password",
+      "description": "Type-in the password of your Movebank account",
+      "defaultValue": "",
+      "type": "STRING"
     }
   ],
   "dependencies": {

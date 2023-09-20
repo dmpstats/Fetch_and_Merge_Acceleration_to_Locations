@@ -24,17 +24,18 @@ present in input data;
 
 3. Downloads sought accelerometer data via `move2::download_study_data()`;
 
-4. Pre-processes acceleration data, including averaging out multiple
+4. Pre-processes acceleration data, including summarizing bursts of
 acceleration values recorded per single observation in some of the tags;
 
 5. Binds acceleration data, consisting of measurements at 3 accelerometer axis,
 to each location event in the input dataset based on individual, day and time of
 the day. Binding currently uses a non-linear (GAM) acceleration-given-time
-relationship fitted internally on-the-fly to the downloaded accelerometer dataset -
-however, this step will be revised to favor a potentially more simplistic
-approach (e.g. interpolation);
+relationship fitted internally on-the-fly to the downloaded accelerometer
+dataset - however, this step is under revision to favor a potentially more
+efficient approach (e.g. interpolation);
 
-6. Outputs location data with associated acceleration measurements.
+6. Outputs location data with associated acceleration measurements in (columns
+`acc_mean_raw_x`, `acc_mean_raw_y` and `acc_mean_raw_y`).
 
 
 **Note**: This App is a workaround for the current restriction on MoveApps to
@@ -59,9 +60,9 @@ None
 
 ### Settings
 
-**Movebank username** (`user`): character string, the Movebank username. Default: `NULL`
+**Movebank username** (`usr`): character string, the Movebank username. Default: `NULL`
 
-**Movebank password** (`pass`): character string, the Movebank password. Default: `NULL`
+**Movebank password** (`pwd`): character string, the Movebank password. Default: `NULL`
 
 
 ### Most common errors
@@ -73,7 +74,7 @@ None yet, but most likely ones to occur are:
 
 ### Null or error handling
 
-**Movebank username** (`user`) and **Movebank password** (`pass`): If one of the
+**Movebank username** (`usr`) and **Movebank password** (`pwd`): If one of the
 credentials are either NULL or connection to Movebank is voided due to invalid
 log-in details, the app will return an error reminding the user to provide valid
 credentials.

@@ -5,3 +5,4 @@
 .DS_Store
 data/output/**
 !data/output/.keep
+app-configuration_secrets.json
