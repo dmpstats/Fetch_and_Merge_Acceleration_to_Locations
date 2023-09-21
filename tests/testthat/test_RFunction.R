@@ -31,11 +31,12 @@ test_that("acc bursts are nested appropriately", {
   )
   # nested dfs with bursts have same # of cols as # of acc-axis
   expect_true(all(map_int(acc_processed$acc_bursts, ncol) == 3))
+  
 })
 
 
 test_that("there are acc summaries for each active acc-axis", {
-
+  
   expected_names <- names(preprocess_acc(acc_testsets$nested_XYZ_raw))
   expect_identical(
     grep("(mean)|(var)_acc", expected_names, value = TRUE),
@@ -53,7 +54,25 @@ test_that("there are acc summaries for each active acc-axis", {
     grep("(mean)|(var)_acc", expected_names, value = TRUE),
     c("mean_acc_x", "var_acc_x")
   )
+  
+})
 
+
+test_that("type of acc data is correctly identified", {
+  
+  # raw acc
+  expect_true(unique(preprocess_acc(acc_testsets$nested_XYZ_raw)$is_acc_raw))
+  expect_true(unique(preprocess_acc(acc_testsets$nested_XY_raw)$is_acc_raw))
+  expect_true(unique(preprocess_acc(acc_testsets$plain_XYZ_raw)$is_acc_raw))
+  expect_false(unique(preprocess_acc(acc_testsets$plain_XYZ_ms2)$is_acc_raw))
+  
+  # eobs tags
+  expect_true(unique(preprocess_acc(acc_testsets$nested_XYZ_raw)$is_acc_eobs))
+  expect_true(unique(preprocess_acc(acc_testsets$nested_with_plain_cols)$is_acc_eobs))
+  expect_false(unique(preprocess_acc(acc_testsets$plain_XYZ_raw)$is_acc_eobs))
+  expect_false(unique(preprocess_acc(acc_testsets$plain_XYZ_ms2)$is_acc_eobs))
+  expect_false(unique(preprocess_acc(acc_testsets$plain_with_nested_cols)$is_acc_eobs))
+  
 })
 
 
@@ -73,8 +92,10 @@ test_that("type of downloaded ACC data format is correctly identified", {
 
 # `mark_time_bursts()`: burst identification ---------------------------------------------------------
 test_that("burst identification output has same length as input", {
+  
   actual <- mark_time_bursts(acc_testsets$plain_XYZ_raw$timestamp)
   expect_length(actual, length(acc_testsets$plain_XYZ_raw$timestamp))
+  
 })
 
 
