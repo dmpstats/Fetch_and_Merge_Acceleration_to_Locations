@@ -123,7 +123,7 @@ preprocess_acc <- function(.data){
   if(acc_format == "nested"){
     
     # get column names with nested acc and axes specification
-    acc_col <- grep("(A|a)ccelerations(_raw)?\\b", cols, value = TRUE)
+    acc_col <- grep("(A|a)ccelerations(_raw)?$", cols, value = TRUE)
     axes_col <- grep("acceleration_axes", cols, value = TRUE)
     
     # convert character-type acc data to matrix and store in list-column
@@ -158,14 +158,14 @@ preprocess_acc <- function(.data){
     .data <- .data |> 
       # standardize acc axis column names
       dplyr::rename_with(
-        .fn = \(x) axes_names, #~paste0("acc", stringr::str_sub(.x, start = -2, end = -1)), 
-        .cols = dplyr::matches("acceleration_(raw_)?[xXyYzZ]")
+        .fn = \(x) axes_names,
+        .cols = dplyr::matches("acceleration_(raw_)?[xXyYzZ]$")
       ) |>
       as.data.frame() |>
       # identify data bursts
       dplyr::mutate(burst_id = mark_time_bursts(.data[[tm_col]])) |> 
-      # nest acc data by bursts (including tilt, if present, event_id and time as they are row-specific)
-      tidyr::nest(acc_bursts = c(dplyr::matches("_[xXyYzZ]\\b"), event_id, dplyr::all_of(tm_col))) |> 
+      # nest acc data by bursts (including tilt, if present, event_id and time, as they're all row-specific)
+      tidyr::nest(acc_bursts = c(dplyr::matches("_[xXyYzZ]$"), event_id, dplyr::all_of(tm_col))) |> 
       dplyr::mutate(
         # set time column as the starting time of burst
         timestamp = purrr::map(acc_bursts, ~ first(.[[tm_col]])),  
