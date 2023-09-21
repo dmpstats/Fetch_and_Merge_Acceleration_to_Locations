@@ -65,6 +65,28 @@ rFunction = function(data, usr, pwd){
     dplyr::select(dplyr::all_of(c(ind_id_col, trk_id_col)), timestamp_start, timestamp_end)
   
   # 4. Download ACC data -------------------------------------------------------
+  logger.info("Downloading ACC data for each animal")
+  
+  # Iterating over rows. Function args given by col position, to allow for
+  # flexible col naming (e.g. "individual_id" and "individual.id")
+  
+  # TODO: 
+  # (i) find out about warnings on acc downloading - add comment to documentation 
+  # (ii) improve error handling with informative user-friendly output
+  acc_dt <- acc_dwnld_args |> 
+    pmap(\(...){   
+      try(
+        movebank_download_study(
+          study_id = study_id,
+          sensor_type_id = "acceleration",
+          individual_id = ..1,
+          timestamp_start = ..3,
+          timestamp_end = ..4
+        ), silent = TRUE
+      )
+    })
+  
+  
   # 5. Preprocess ACC data
   logger.info("Pre-processing downloaded Accelerometer data")
   #acc_processed <- preprocess_acc("dummy")
