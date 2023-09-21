@@ -15,29 +15,68 @@ library("assertthat")
 
 rFunction = function(data, usr, pwd){
   
+  # input validation -----------------------------------------------------------
+  assertthat::assert_that(mt_is_move2(data))
+  if(!is.character(usr) | length(usr) > 1) stop("`usr` must be a character vector of length one")
+  if(!is.character(pwd) | length(usr) > 1) stop("`pwd` must be a character vector of length one")
+  
   # Set movebank login credentials
   options("keyring_backend"="env")
   movebank_store_credentials(username = usr, password = pwd)
   
-  # 1. Get study IDs and individual IDs in input dataset -----------------------
-  # TODO
+  # 1. Collect data details ----------------------------------------------------
+  logger.info("Collecting input data details")
+
+  trk_dt <- mt_track_data(data)
+  trk_id_col <- mt_track_id_column(data)
+  trk_ids <- trk_dt[[trk_id_col]]
+  trk_dt_colnames <- names(trk_dt)
+  study_id_col <- grep("study(_|.)id", trk_dt_colnames)
+  study_id <- unique(trk_dt[[study_id_col]])
+  ind_id_col <- grep("individual(_|.)id", trk_dt_colnames, value = TRUE)
+  ind_ids <- trk_dt[[ind_id_col]]
   
-  # 2. Find which individuals have acc data available --------------------------
-  # TODO
+  # 2. Split animal-level data based on acc availability -------------------
+  sensor_col <- grep("^sensor(_|.)type(_|.)ids$", trk_dt_colnames)
+  ind_acc_idx <- grep("acceleration", trk_dt[[sensor_col]], ignore.case = TRUE)
   
-  # 3. Download Acc data -------------------------------------------------------
-  # TODO
+  if(length(ind_acc_idx) == 0){
+    logger.warn(
+      paste("Accelerometer data is not collected for any of the animals",
+            "in the input data set. Returning input data unchanged")
+    )
+    # COMBAK: testing if the following warning message appears in the APP's output panel
+    warning("Accelerometer data is not collected for any of the animals in the",
+            "input data set. Returning input data unchanged\n")
+    
+    return(data)
+    
+  }else{
+    dt_with_acc <- filter_track_data(data, .track_id = trk_ids[ind_acc_idx])
+    dt_without_acc <- filter_track_data(data, .track_id = trk_ids[-ind_acc_idx])
+  }
   
-  # 4. Preprocess ACC data
+  # 3. Extract info for arguments required for acc downloading function --------
+  acc_dwnld_args <- dt_with_acc |> 
+    sf::st_drop_geometry() |> 
+    dplyr::group_by(.data[[trk_id_col]]) |> 
+    dplyr::summarise(timestamp_start = min(timestamp), timestamp_end = max(timestamp)) |> 
+    dplyr::left_join(trk_dt, by = trk_id_col) |> 
+    dplyr::select(dplyr::all_of(c(ind_id_col, trk_id_col)), timestamp_start, timestamp_end)
+  
+  # 4. Download ACC data -------------------------------------------------------
+  # 5. Preprocess ACC data
+  logger.info("Pre-processing downloaded Accelerometer data")
   #acc_processed <- preprocess_acc("dummy")
   
   
-  # 5. Bind ACC data to input data 
+  # 6. Bind ACC data to input data 
   # TODO
   
 
   # provide my result to the next app in the MoveApps workflow
-  return(result)
+  mt_stack(dt_with_acc, dt_without_acc)
+  
 }
 
 
@@ -110,11 +149,10 @@ preprocess_acc <- function(.data){
     # Identify acc bursts based on timestamp and nest bursts as list-column
     #
     # NOTE: Some accelerometer tags provide tilt data alongside acceleration
-    # samples, which here also gets nested
     #
-    # HACK (minor): For some unclear reason, nesting does not work unless data
-    # is converted to data.frame. Therefore, need to collect required
-    # information for back-conversion to move2
+    # HACK (minor): For some reason, nesting does not work unless move2 is
+    # converted to data.frame. Therefore, need to collect required information
+    # for back-conversion to move2
     
     # reshape data
     .data <- .data |> 
@@ -133,7 +171,7 @@ preprocess_acc <- function(.data){
         timestamp = purrr::map(acc_bursts, ~ first(.[[tm_col]])),  
         # drop non-acceleration columns and convert to matrix for faster summarising below
         acc_bursts = purrr::map(acc_bursts, ~ as.matrix(.[, axes_names])), 
-        # add extra info on type of acc data
+        # extra info on type of acc data
         is_acc_raw, is_acc_eobs 
       ) |>
       tidyr::unnest(timestamp)
