@@ -6,12 +6,18 @@ library("tidyr")
 library("purrr")
 library("stringr")
 library("assertthat")
+library("rlang")
 
-## The parameter "data" is reserved for the data object passed on from the previous app
+## The parameter "data" is reserved for the data object passed on from the
+## previous app
 
-# to display messages to the user in the log file of the App in MoveApps
+## TODO: Review format of returned unchanged data when ACC unavailable for any
+## of the animals given how ACC is integrated in downstream apps.
+
+# To display messages to the user in the log file of the App in MoveApps
 # one can use the function from the logger.R file:
-# logger.fatal(), logger.error(), logger.warn(), logger.info(), logger.debug(), logger.trace()
+# logger.fatal(), logger.error(), logger.warn(), logger.info(), logger.debug(),
+# logger.trace()
 
 rFunction = function(data, usr, pwd){
   
@@ -24,87 +30,171 @@ rFunction = function(data, usr, pwd){
   options("keyring_backend"="env")
   movebank_store_credentials(username = usr, password = pwd)
   
-  # 1. Collect data details ----------------------------------------------------
+  # 1. Collect input data details -----------------------------------------------
   logger.info("Collecting input data details")
 
   trk_dt <- mt_track_data(data)
   trk_id_col <- mt_track_id_column(data)
-  trk_ids <- trk_dt[[trk_id_col]]
+  #trk_ids <- trk_dt[[trk_id_col]]
   trk_dt_colnames <- names(trk_dt)
-  study_id_col <- grep("study(_|.)id", trk_dt_colnames)
+  study_id_col <- grep("study(_|.)id", trk_dt_colnames, value = TRUE)
   study_id <- unique(trk_dt[[study_id_col]])
   ind_id_col <- grep("individual(_|.)id", trk_dt_colnames, value = TRUE)
-  ind_ids <- trk_dt[[ind_id_col]]
+  #ind_ids <- trk_dt[[ind_id_col]]
+  sens_id_col <- grep("^sensor(_|.)type(_|.)ids$", trk_dt_colnames, value = TRUE)
+  dwnld_perm_id_col <- grep("i(_|.)have(_|.)download(_|.)access", trk_dt_colnames, value = TRUE)
   
-  # 2. Split animal-level data based on acc availability -------------------
-  sensor_col <- grep("^sensor(_|.)type(_|.)ids$", trk_dt_colnames)
-  ind_acc_idx <- grep("acceleration", trk_dt[[sensor_col]], ignore.case = TRUE)
   
-  if(length(ind_acc_idx) == 0){
+  # 2. AAC accessibility checks ------------------------------------------------
+  
+  # Is ACC data collected? 
+  trk_dt$is_acc_collected <- grepl("acceleration", trk_dt[[sens_id_col]], ignore.case = TRUE)
+  
+  # Escape subsequent computations and return unchanged input data if ACC data not
+  # collected for none of the animals
+  if(all(!trk_dt$is_acc_collected)){
     logger.warn(
       paste("Accelerometer data is not collected for any of the animals",
-            "in the input data set. Returning input data unchanged")
+            "in the input data set. Returning input data unchanged.")
     )
     # COMBAK: testing if the following warning message appears in the APP's output panel
-    warning("Accelerometer data is not collected for any of the animals in the",
-            "input data set. Returning input data unchanged\n")
+    warning("Accelerometer data is not collected for any of the animals in the ",
+            "input data set. Returning input data unchanged\n", call. = FALSE)
     
     return(data)
-    
-  }else{
-    dt_with_acc <- filter_track_data(data, .track_id = trk_ids[ind_acc_idx])
-    dt_without_acc <- filter_track_data(data, .track_id = trk_ids[-ind_acc_idx])
   }
   
-  # 3. Extract info for arguments required for acc downloading function --------
-  acc_dwnld_args <- dt_with_acc |> 
+  # Does user have download permission for study data?
+  if(length(dwnld_perm_id_col) == 0){
+    
+    dwnld_perm <- sapply(
+      study_id, 
+      \(x) movebank_download_study_info(study_id = x)$i_have_download_access
+    )
+    
+    trk_dt$i_have_download_access <- rep(dwnld_perm, each = rle(trk_dt[[study_id_col]])$lengths)
+  }
+
+  # Escape subsequent computations and return unchanged input data if no
+  # permission for any of the animals
+  if(all(!trk_dt$i_have_download_access)){
+    logger.warn(
+      paste("User does not have permission to download Accelerometer for any of",
+            "the animals in the input data set. Returning input data unchanged.")
+    )
+    return(data)
+  }
+
+  
+  # 3. Build required data for ACC download   -----------------------------------
+  
+  acc_dwnld_info <- trk_dt |> 
+    dplyr::select(
+      dplyr::all_of(c(study_id_col, ind_id_col, trk_id_col, sens_id_col)), 
+      is_acc_collected, i_have_download_access
+    )
+
+  # Add timestamps of first event and final event of each animal
+  dt_time_span <- data |> 
     sf::st_drop_geometry() |> 
     dplyr::group_by(.data[[trk_id_col]]) |> 
-    dplyr::summarise(timestamp_start = min(timestamp), timestamp_end = max(timestamp)) |> 
-    dplyr::left_join(trk_dt, by = trk_id_col) |> 
-    dplyr::select(dplyr::all_of(c(ind_id_col, trk_id_col)), timestamp_start, timestamp_end)
+    dplyr::summarise(timestamp_start = min(timestamp), timestamp_end = max(timestamp)) 
+  
+  acc_dwnld_info <- dplyr::left_join(acc_dwnld_info, dt_time_span, by = trk_id_col)
+  
   
   # 4. Download ACC data -------------------------------------------------------
   logger.info("Downloading ACC data for each animal")
   
-  # Iterating over rows. Function args given by col position, to allow for
-  # flexible col naming (e.g. "individual_id" and "individual.id")
+  # Iterate over rows and nest downloaded data. 
+  # NOTE: warning thrown after data is downloaded due to issue in
+  # movebank_download_study() when applied to accelerometer data, caused at
+  # sf::st_as_sf() conversion with NAs in lat/lon. Issue raised with {move2} and
+  # already solved in dev version. Warnings should not appear on the next
+  # {move2} release. (https://gitlab.com/bartk/move2/-/issues/63). In the
+  # meantime, use withCallingHandlers to muffle the specific warning.
+  # TODO: Remove withCallingHandlers call once new release of {move2} is out
+  acc_dt <- acc_dwnld_info |> 
+    dplyr::mutate(
+      acc = purrr::pmap(
+        .l = list(.data[[study_id_col]], .data[[ind_id_col]], 
+                  is_acc_collected, timestamp_start, timestamp_end), 
+        .f = \(std, ind, acc_exists, start, end){
+          if(acc_exists){
+            withCallingHandlers(
+              tryCatch(
+                movebank_download_study(
+                  study_id = std,
+                  sensor_type_id = "acceleration",
+                  individual_id = ind,
+                  timestamp_start = start,
+                  timestamp_end = end
+                ),
+                move2_error_no_data_found = function(cnd){
+                  #message("No ACC data available for selected time period")
+                  NULL
+                }),
+              warning = function(cnd){
+                cnd_msg <- conditionMessage(cnd)
+                cnd_exp <- "no non-missing arguments to m(in|ax); returning -?Inf"
+                if(grepl(cnd_exp, cnd_msg)) rlang::cnd_muffle(cnd)
+              })
+          } else NULL
+        })
+    )
   
-  # TODO: 
-  # (i) find out about warnings on acc downloading - add comment to documentation 
-  # (ii) improve error handling with informative user-friendly output
-  acc_dt <- acc_dwnld_args |> 
-    pmap(\(...){   
-      try(
-        movebank_download_study(
-          study_id = study_id,
-          sensor_type_id = "acceleration",
-          individual_id = ..1,
-          timestamp_start = ..3,
-          timestamp_end = ..4
-        ), silent = TRUE
-      )
-    })
+  # Summarise downloaded data
+  acc_dwnl_summary <- acc_dt |> 
+    dplyr::mutate(
+      acc_in_tmspan = purrr::map_lgl(acc, not_null),  
+      acc_nrows = purrr::map2_int(acc_in_tmspan, acc, ~ifelse(.x, nrow(.y), 0))
+    ) |> 
+    dplyr::select(-c(acc, dplyr::all_of(ind_id_col)))
+
   
+  logger.info(
+    paste0(
+      "========= Summary of downloaded ACC data ==========\n\n",
+      paste0(capture.output(print(acc_dwnl_summary, n = Inf)), collapse = "\n"),
+      "\n"
+    ))
+
   
-  # 5. Preprocess ACC data
+  # 5. Preprocess ACC data ----------------------------------------------------
   logger.info("Pre-processing downloaded Accelerometer data")
-  #acc_processed <- preprocess_acc("dummy")
   
   
-  # 6. Bind ACC data to input data 
+  # 6. Bind ACC data to input data --------------------------------------------
   # TODO
   
-
-  # provide my result to the next app in the MoveApps workflow
-  mt_stack(dt_with_acc, dt_without_acc)
+  # acc_dt$acc[[3]] |> 
+  #   dplyr::select(
+  #     dplyr::matches("(mean|var)_acc_[xyz]"), 
+  #     yearmonthday, 
+  #     hour_dec)
   
+  #   dt_with_acc <- filter_track_data(data, .track_id = trk_ids[ind_acc_idx])
+  #   dt_without_acc <- filter_track_data(data, .track_id = trk_ids[-ind_acc_idx])
+  
+  
+  # 7. Export relevant data as artefacts ---------------------------------------
+  saveRDS(acc_dt, file = appArtifactPath("downloaded_acc_data.csv"))
+  
+  
+  #logger.info("We are done my friend!")
+  logger.info("Done! App has finished all its tasks")
+  
+  ## provide my result to the next app in the MoveApps workflow
+  #mt_stack(dt_with_acc, dt_without_acc)
+  invisible()
 }
 
 
 
 
-#' /////////////////////////////////////////////////////////////////////////////
+
+
+# /////////////////////////////////////////////////////////////////////////////
 preprocess_acc <- function(.data){
   
   # input validation -------------------------------------
@@ -128,9 +218,9 @@ preprocess_acc <- function(.data){
   # Standardize format ---------------------------------
   
   # Depending on format type (i.e. nested or plain), provided data reshaped to
-  # have bursts of ACC nested in a list-column named `acc_bursts`, i.e. with one
-  # burst per row. Type (raw or non-raw) and origin (eobs or non-eobs) of acc
-  # data is also stored.
+  # have bursts of ACC nested in a list-column named `acc_bursts`, i.e. one
+  # burst per row. Type (raw or non-raw) and origin (eobs or non-eobs) of ACC
+  # also stored.
   #
   # NOTE: Code assumes types of data and tag origin are mutually exclusive at the
   # animal level - i.e., .data can only contain either raw or non-raw acc, from
@@ -168,7 +258,7 @@ preprocess_acc <- function(.data){
     # define standardized names for axis columns in output
     axes_names <- paste0("acc", stringr::str_sub(acc_axis_cols, start = -2, end = -1))
 
-    # Identify acc bursts based on timestamp and nest bursts as list-column
+    # Identify acc bursts based on timestamp and nests bursts as list-column
     #
     # NOTE: Some accelerometer tags provide tilt data alongside acceleration
     #
@@ -211,11 +301,11 @@ preprocess_acc <- function(.data){
       mean = purrr::map(acc_bursts, ~ apply(., 2, mean, na.rm = TRUE)),
       var = purrr::map(acc_bursts, ~ apply(., 2, var, na.rm = TRUE))
     ) |>
-    tidyr::unnest_wider(c(mean,var), names_sep = "_") |>
+    tidyr::unnest_wider(c(mean, var), names_sep = "_") |>
     # add variables required for binding to location data
     dplyr::mutate(
       yearmonthday = gsub( "-", "", substr(timestamp, 1, 10)),
-      hourmin = time_to_decimal_hours(timestamp)
+      hour_dec = time_to_decimal_hours(timestamp)
     )
   
   # convert back to move2 ----------------------------
@@ -256,7 +346,7 @@ get_acc_format <- function(.data){
   # default classification
   out <- "undetermined"
   
-  # Stage 1 --------------
+  # Phase 1 --------------
   # Detect presence of column with bursts of ACC sensor values nested per row,
   # based on expected names as described in Movabanks Attribute Dictionary
   if(any(grepl("(A|a)ccelerations(_raw)?\\b", cols))){
@@ -268,7 +358,7 @@ get_acc_format <- function(.data){
     } 
   }
   
-  # Stage 2 ----------------
+  # Phase 2 ----------------
   # Detect presence of columns named with "acceleration_" (singular),
   # suggesting non-nested format i.e. one acc sensor value per row
   acc_col_idx <- grep("acceleration_(raw_)?[xXyYzZ]", cols)
@@ -381,3 +471,7 @@ time_to_decimal_hours <- function(datetime){
   secs = lubridate::second(datetime)
   hour + minute/60 + secs/3600
 }
+
+
+#' /////////////////////////////////////////////////////////////////////////////
+not_null <- Negate(is.null)

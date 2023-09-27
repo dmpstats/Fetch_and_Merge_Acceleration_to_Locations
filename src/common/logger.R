@@ -19,7 +19,8 @@ logger.layout <- function(level, msg, id='', ...) {
     parsed <- lapply(list(...), function(x) if(is.null(x)) 'NULL' else x )
     msg <- do.call(sprintf, c(msg, parsed))
   }
-  sprintf("[%s] %s\n", names(level), msg)
+  #sprintf("[%s] %s\n", names(level), msg)
+  sprintf("[%s: %s] %s\n", names(level), the.time, msg)
 }
 
 logger.log_level <- function(msg, ..., level)
@@ -55,3 +56,4 @@ logger.fatal <- function(msg, ...) {
 }
 
 logger.threshold = Sys.getenv(x = "LOG_LEVEL_SDK", TRACE)
+
