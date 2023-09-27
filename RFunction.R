@@ -163,6 +163,14 @@ rFunction = function(data, usr, pwd){
   # 5. Preprocess ACC data ----------------------------------------------------
   logger.info("Pre-processing downloaded Accelerometer data")
   
+  # Iterate row-wise (i.e. per animal) and replace nested unprocessed ACC data
+  acc_dt <- acc_dt |> 
+    mutate(acc = map(acc, \(x){
+      if(not_null(x)){
+        preprocess_acc(x)
+      } else NULL
+    })
+    )
   
   # 6. Bind ACC data to input data --------------------------------------------
   # TODO
