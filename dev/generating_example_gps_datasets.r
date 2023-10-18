@@ -1,6 +1,6 @@
 # ------------------------------------------------- #
-#    Get and store example accelerometer datasets   #
-# ------------------------------------------------- #1
+#         Get and store example GPS datasets        #
+# ------------------------------------------------- #
 
 # Preamble --------------------------------------------------------------------
 
@@ -21,7 +21,7 @@ options(pillar.width = Inf)
 # set up Movebank credentials to local environment
 move2::movebank_store_credentials(
   username = usr, 
-  password = psw
+  password = pwd
 )
 
 keyring::key_list()
@@ -32,7 +32,7 @@ keyring::key_list()
 studies_list <- movebank_download_study_info(i_have_download_access = TRUE)
 
 
-## filter studis with gps and with full access
+## filter studies with gps and with full access
 studies_list <- studies_list |> 
   filter(
     there_are_data_which_i_cannot_see  == FALSE,
@@ -100,16 +100,17 @@ event_freq_animals |>
 
 
 low_freq_animals <- event_freq_animals |> 
-  filter(study_id == 10449318) |> 
+  filter(study_id == 10449318) |>
   arrange(desc(timestamp_end)) |> 
-  slice(9:10)
+  slice(11:12)
+
 
 
 low_freq <- move2::movebank_download_study(
   study_id = as.numeric(unique(low_freq_animals$study_id)), 
   sensor_type_id = "gps",
   individual_id = low_freq_animals$id,
-  timestamp_start = max(low_freq_animals$timestamp_end) - lubridate::days(3),
+  timestamp_start = max(low_freq_animals$timestamp_end) - lubridate::days(20),
   timestamp_end = max(low_freq_animals$timestamp_end),
 )
 
@@ -190,7 +191,7 @@ vult_sa_animals <- animal_info_df |>
   ) |> 
   slice_sample(n=3)
 
-# dowload last 2 days of data
+# download last 2 days of data
 vult_sa <- move2::movebank_download_study(
   study_id = as.numeric(unique(vult_sa_animals$study_id)), 
   sensor_type_id = "gps",
@@ -260,8 +261,43 @@ vult_nam
 summary(mt_time_lags(vult_nam))
 
 
+# Example large Vulture GPS data sets (GPS *and* ACC )------------------
+
+nam
+large_nam_animals <- animal_info_df |> 
+  filter(
+    study_id == namsop_id,
+    !is.na(sensor_type_ids),
+    str_detect(sensor_type_ids, "acceleration"),
+    timestamp_end > as.POSIXct("2023-09-01 00:00:01 UTC")
+  )
 
 
+vult_nam_large <- move2::movebank_download_study(
+  study_id = as.numeric(unique(large_nam_animals$study_id)), 
+  sensor_type_id = "gps",
+  individual_id = large_nam_animals$id,
+  timestamp_start = max(large_nam_animals$timestamp_end) - lubridate::days(15),
+  timestamp_end = max(large_nam_animals$timestamp_end)
+)
+
+
+# gaia
+gaia_animals_large <- animal_info_df |> 
+  filter(
+    study_id == vult_gaia_id,
+    !is.na(sensor_type_ids),
+    timestamp_end > as.POSIXct("2023-09-01 00:00:01 UTC")
+  )
+
+
+vult_gaia_large <- move2::movebank_download_study(
+  study_id = as.numeric(unique(gaia_animals_large$study_id)), 
+  sensor_type_id = "gps",
+  individual_id = gaia_animals_large$id,
+  timestamp_start = max(gaia_animals_large$timestamp_end) - lubridate::days(15),
+  timestamp_end = max(gaia_animals_large$timestamp_end)
+)
 
 
 
@@ -274,7 +310,8 @@ readr::write_rds(high_freq, file = "data/raw/gps_high_freq.rds")
 readr::write_rds(low_freq, file = "data/raw/gps_low_freq.rds")
 readr::write_rds(mixed_acc, file = "data/raw/gps_mixed_acc.rds")
 readr::write_rds(without_acc, file = "data/raw/gps_without_acc.rds")
-
+readr::write_rds(vult_nam_large, file = "dev/vult_nam_large.rds")
+readr::write_rds(vult_gaia_large, file = "dev/vult_gaia_large.rds")
 
 
 

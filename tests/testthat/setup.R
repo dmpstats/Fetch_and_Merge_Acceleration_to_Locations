@@ -5,6 +5,6 @@ Sys.setenv("LOCAL_APP_FILES_DIR" = "../../data/local_app_files")
 # the system under test (sut)
 source(file.path("..", "..", "./RFunction.R"))
 
-# movebank credentials stored in HOME .Renviron file
+# movebank credentials stored in HOME .Renviron file, set up via `usethis::edit_r_environ()`
 usr <- Sys.getenv("vult_usr")
 pwd <- Sys.getenv("vult_pwd")

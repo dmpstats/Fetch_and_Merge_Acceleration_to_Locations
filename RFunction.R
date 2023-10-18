@@ -6,32 +6,45 @@ library("tidyr")
 library("purrr")
 library("stringr")
 library("assertthat")
+library("sf")
 library("rlang")
 
-## The parameter "data" is reserved for the data object passed on from the
-## previous app
+## The parameter `data` is reserved for the data object passed on from the
+## previous app - it MUST be of IO type move2_loc
 
-## TODO: Review format of returned unchanged data when ACC unavailable for any
-## of the animals given how ACC is integrated in downstream apps.
-
-# To display messages to the user in the log file of the App in MoveApps
-# one can use the function from the logger.R file:
-# logger.fatal(), logger.error(), logger.warn(), logger.info(), logger.debug(),
-# logger.trace()
-
-rFunction = function(data, usr, pwd){
+rFunction = function(data, 
+                     usr, pwd, 
+                     merging_rule = c("nearest", "latest"), 
+                     store_acc_track_info = FALSE,
+                     acc_timefilter = 0){
   
-  # input validation -----------------------------------------------------------
+  
+  # Input validation --------------------------------------------------------
+  # These assertions are a bit redundant given definitions in appspec.json and
+  # checks done at the GUI level. HOWEVER, they're useful for dev and local testing
   assertthat::assert_that(mt_is_move2(data))
-  if(!is.character(usr) | length(usr) > 1) stop("`usr` must be a character vector of length one")
-  if(!is.character(pwd) | length(usr) > 1) stop("`pwd` must be a character vector of length one")
+  assertthat::assert_that(assertthat::is.string(usr))
+  assertthat::assert_that(assertthat::is.string(pwd))
+  assertthat::assert_that(is.logical(store_acc_track_info))
+  assertthat::assert_that(assertthat::is.string(merging_rule))
+  match.arg(merging_rule)
+  assertthat::assert_that(assertthat::is.number(acc_timefilter))
+  assertthat::assert_that(
+    dplyr::between(acc_timefilter, 0, 30),
+    msg = paste0(
+      "The specified time interval of ", acc_timefilter, " mins (`acc_timefilter`)",
+      " is outside the accepted range of values to filter Accelerometer data.",
+      " Please provide a value between 0 and 30.")
+  )
+    
   
-  # Set movebank login credentials
+  # Set movebank login credentials ---------------------------------------------
   options("keyring_backend"="env")
   movebank_store_credentials(username = usr, password = pwd)
+
   
-  # 1. Collect input data details -----------------------------------------------
-  logger.info("Collecting input data details")
+  # Collect input data details -----------------------------------------------
+  logger.info("Collecting details about input data")
 
   trk_dt <- mt_track_data(data)
   trk_id_col <- mt_track_id_column(data)
@@ -40,87 +53,114 @@ rFunction = function(data, usr, pwd){
   study_id_col <- grep("study(_|.)id", trk_dt_colnames, value = TRUE)
   study_id <- unique(trk_dt[[study_id_col]])
   ind_id_col <- grep("individual(_|.)id", trk_dt_colnames, value = TRUE)
-  #ind_ids <- trk_dt[[ind_id_col]]
   sens_id_col <- grep("^sensor(_|.)type(_|.)ids$", trk_dt_colnames, value = TRUE)
-  dwnld_perm_id_col <- grep("i(_|.)have(_|.)download(_|.)access", trk_dt_colnames, value = TRUE)
+  dwnld_perm_id_col <- grep("i(_|.)have(_|.)download(_|.)access", 
+                            trk_dt_colnames, value = TRUE)
+  time_id_col <- mt_time_column(data)
+  event_id_col <- grep("event(_|.)id", trk_dt_colnames, value = TRUE)
   
+
   
-  # 2. AAC accessibility checks ------------------------------------------------
-  
-  # Is ACC data collected? 
-  trk_dt$is_acc_collected <- grepl("acceleration", trk_dt[[sens_id_col]], ignore.case = TRUE)
-  
-  # Escape subsequent computations and return unchanged input data if ACC data not
-  # collected for none of the animals
-  if(all(!trk_dt$is_acc_collected)){
-    logger.warn(
-      paste("Accelerometer data is not collected for any of the animals",
-            "in the input data set. Returning input data unchanged.")
-    )
-    # COMBAK: testing if the following warning message appears in the APP's output panel
-    warning("Accelerometer data is not collected for any of the animals in the ",
-            "input data set. Returning input data unchanged\n", call. = FALSE)
+  # Input data prep ------------------------------------------------------------
+  data <- data |> 
+    # set event and track datasets underlying move2 object as tibble (tidier printing)
+    mt_as_move2_tibble() |> 
+    # drop events with missing timestamps
+    dplyr::filter(!is.na(.data[[time_id_col]])) |> 
+    # order by time within track
+    dplyr::arrange(.data[[trk_id_col]], .data[[time_id_col]])
     
-    return(data)
-  }
   
-  # Does user have download permission for study data?
-  if(length(dwnld_perm_id_col) == 0){
-    
+  
+  # AAC availability checks ---------------------------------------------------
+  logger.info("Checking ACC data availability")
+  
+  ## Is ACC data collected? 
+  trk_dt$is_acc_collected <- grepl("acceleration", trk_dt[[sens_id_col]], 
+                                   ignore.case = TRUE)
+  
+  ## Fetch download permissions if info absent in input data
+  if(length(dwnld_perm_id_col) == 0){  
+    # Here assuming multiple studies in input data, which currently won't happen
+    # in MoveApps (only one study allowed per workflow). Doesn't impact
+    # performance so keeping it for the moment
     dwnld_perm <- sapply(
       study_id, 
       \(x) movebank_download_study_info(study_id = x)$i_have_download_access
     )
-    
-    trk_dt$i_have_download_access <- rep(dwnld_perm, each = rle(trk_dt[[study_id_col]])$lengths)
+    dwnld_perm_id_col <- "i_have_download_access"
+    trk_dt[[dwnld_perm_id_col]] <- rep(dwnld_perm, each = rle(trk_dt[[study_id_col]])$lengths)
   }
+  
 
-  # Escape subsequent computations and return unchanged input data if no
-  # permission for any of the animals
-  if(all(!trk_dt$i_have_download_access)){
+  # Escape if no ACC for any of the animals
+  if(all(!trk_dt$is_acc_collected)){
     logger.warn(
-      paste("User does not have permission to download Accelerometer for any of",
-            "the animals in the input data set. Returning input data unchanged.")
+      paste("Accelerometer data is not collected for any of the animals",
+            "in the input data set. Skipping ACC dowloading and merging steps.")
     )
-    return(data)
+    # COMBAK: testing if the following warning message appears in the APP's output panel
+    warning("Accelerometer data is not collected for any of the animals in the ",
+            "input data set. Skipping ACC dowloading and merging steps.\n",
+            call. = FALSE)
+
+    data_output <- data |>  mt_set_track_data(trk_dt) |>  mutate(acc_dt = list(NULL))
+    return(data_output)
   }
+  
+  # Escape if no permission for any of the animals
+  if(all(!trk_dt[[dwnld_perm_id_col]])){
+    logger.warn(
+      paste("User does not have permission to download Accelerometer data for any of",
+            "the animals in the input data set. Skipping ACC dowloading and merging steps.")
+    )
+    
+    data_output <- data |> mt_set_track_data(trk_dt) |> mutate(acc_dt = list(NULL))
+    return(data_output)
+  }
+  
 
   
-  # 3. Build required data for ACC download   -----------------------------------
   
+  # Gather info to set up ACC download   ---------------------------------------
   acc_dwnld_info <- trk_dt |> 
     dplyr::select(
       dplyr::all_of(c(study_id_col, ind_id_col, trk_id_col, sens_id_col)), 
       is_acc_collected, i_have_download_access
     )
 
-  # Add timestamps of first event and final event of each animal
-  dt_time_span <- data |> 
+  ## Add timestamps of first event and final event of each animal in input data
+  dwnld_timespan <- data |> 
     sf::st_drop_geometry() |> 
     dplyr::group_by(.data[[trk_id_col]]) |> 
-    dplyr::summarise(timestamp_start = min(timestamp), timestamp_end = max(timestamp)) 
+    dplyr::summarise(
+      acc_dwn_start_time = min(.data[[time_id_col]], na.rm = TRUE), 
+      acc_dwn_end_time = max(.data[[time_id_col]], na.rm = TRUE)
+    ) 
   
-  acc_dwnld_info <- dplyr::left_join(acc_dwnld_info, dt_time_span, by = trk_id_col)
+  acc_dwnld_info <- dplyr::left_join(acc_dwnld_info, dwnld_timespan, by = trk_id_col)
   
   
-  # 4. Download ACC data -------------------------------------------------------
+  
+  # Download ACC data ----------------------------------------------------------
   logger.info("Downloading ACC data for each animal")
   
-  # Iterate over rows and nest downloaded data. 
-  # NOTE: warning thrown after data is downloaded due to issue in
-  # movebank_download_study() when applied to accelerometer data, caused at
-  # sf::st_as_sf() conversion with NAs in lat/lon. Issue raised with {move2} and
-  # already solved in dev version. Warnings should not appear on the next
-  # {move2} release. (https://gitlab.com/bartk/move2/-/issues/63). In the
-  # meantime, use withCallingHandlers to muffle the specific warning.
-  # TODO: Remove withCallingHandlers call once new release of {move2} is out
-  acc_dt <- acc_dwnld_info |> 
+  ## Iterate over rows and nest downloaded data. 
+  ## NOTE: warning thrown after data is downloaded due to issue in
+  ## movebank_download_study() when applied to accelerometer data, caused at
+  ## sf::st_as_sf() conversion with NAs in lat/lon. Issue raised with {move2} and
+  ## already solved in dev version. Warnings should not appear on the next
+  ## {move2} release. (https://gitlab.com/bartk/move2/-/issues/63). In the
+  ## meantime, use withCallingHandlers to muffle the specific warning.
+  ## TODO: Remove withCallingHandlers call once new release of {move2} is out
+  acc <- acc_dwnld_info |> 
+    dplyr::as_tibble() |> 
     dplyr::mutate(
-      acc = purrr::pmap(
+      acc_dt = purrr::pmap(
         .l = list(.data[[study_id_col]], .data[[ind_id_col]], 
-                  is_acc_collected, timestamp_start, timestamp_end), 
-        .f = \(std, ind, acc_exists, start, end){
-          if(acc_exists){
+                  is_acc_collected, acc_dwn_start_time, acc_dwn_end_time), 
+        .f = \(std, ind, acc_collected, start, end){
+          if(acc_collected){
             withCallingHandlers(
               tryCatch(
                 movebank_download_study(
@@ -130,10 +170,12 @@ rFunction = function(data, usr, pwd){
                   timestamp_start = start,
                   timestamp_end = end
                 ),
-                move2_error_no_data_found = function(cnd){
-                  #message("No ACC data available for selected time period")
-                  NULL
-                }),
+                move2_error_no_data_found = function(cnd) NULL#,
+                # move2_error_movebank_api_license_not_accepted = function(cnd){
+                #   warning("ACC download failed because user has not accepted api license terms of the study")
+                #   NULL
+                # }
+              ),
               warning = function(cnd){
                 cnd_msg <- conditionMessage(cnd)
                 cnd_exp <- "no non-missing arguments to m(in|ax); returning -?Inf"
@@ -143,58 +185,132 @@ rFunction = function(data, usr, pwd){
         })
     )
   
-  # Summarise downloaded data
-  acc_dwnl_summary <- acc_dt |> 
+  ## Add details on downloaded data
+  acc <- acc |>
     dplyr::mutate(
-      acc_in_tmspan = purrr::map_lgl(acc, not_null),  
-      acc_nrows = purrr::map2_int(acc_in_tmspan, acc, ~ifelse(.x, nrow(.y), 0))
-    ) |> 
-    dplyr::select(-c(acc, dplyr::all_of(ind_id_col)))
+      acc_in_timespan = purrr::map_lgl(acc_dt, not_null), 
+      .after = acc_dwn_end_time)
 
+  ## print summary to log 
+  acc_dwnld_summary <- acc |> 
+    mutate(acc_nrows = purrr::map2_int(acc_in_timespan, acc_dt, ~ifelse(.x, nrow(.y), 0))) |> 
+    dplyr::select(-acc_dt, -dplyr::all_of(ind_id_col))
   
   logger.info(
     paste0(
-      "========= Summary of downloaded ACC data ==========\n\n",
-      paste0(capture.output(print(acc_dwnl_summary, n = Inf)), collapse = "\n"),
+      "\n\n====== Summary of downloaded ACC data =======\n\n",
+      paste0(capture.output(print(acc_dwnld_summary, n = Inf)), collapse = "\n"),
       "\n"
-    ))
-
+    ))  
   
-  # 5. Preprocess ACC data ----------------------------------------------------
-  logger.info("Pre-processing downloaded Accelerometer data")
   
-  # Iterate row-wise (i.e. per animal) and replace nested unprocessed ACC data
-  acc_dt <- acc_dt |> 
-    mutate(acc = map(acc, \(x){
-      if(not_null(x)){
-        preprocess_acc(x)
-      } else NULL
-    })
+  
+  # Process ACC data ----------------------------------------------------------
+  logger.info("Processing downloaded Accelerometer data")
+  
+  ## Process by iterating row-wise (i.e. per animal) and overwrite nested
+  ## unprocessed ACC data
+  acc <- acc |> 
+    dplyr::mutate(
+      acc_dt = purrr::map(acc_dt, \(x){
+        if(not_null(x)){
+          process_acc(x, acc_timefilter)
+        } else NULL
+      }, 
+      .progress = TRUE)
     )
   
-  # 6. Bind ACC data to input data --------------------------------------------
-  # TODO
-  
-  # acc_dt$acc[[3]] |> 
-  #   dplyr::select(
-  #     dplyr::matches("(mean|var)_acc_[xyz]"), 
-  #     yearmonthday, 
-  #     hour_dec)
-  
-  #   dt_with_acc <- filter_track_data(data, .track_id = trk_ids[ind_acc_idx])
-  #   dt_without_acc <- filter_track_data(data, .track_id = trk_ids[-ind_acc_idx])
+  # Remind user on thinning of dowloaded ACC using time filter
+  if(acc_timefilter > 0){
+    logger.info(
+      paste0("Downloaded ACC data thinned to a time interval of ", acc_timefilter, " mins")
+    )
+  }
   
   
-  # 7. Export relevant data as artefacts ---------------------------------------
-  saveRDS(acc_dt, file = appArtifactPath("downloaded_acc_data.csv"))
+  
+  # Merge ACC data to input location data --------------------------------------
+  logger.info("Merging ACC data to location data")
+  
+  # TODO??? each record of location data must be unique
+  # data <- mt_filter_unique(data, criterion = "first")
+  
+  ## Separate acc event data from acc track data AND set event data as tibble.
+  ## Two reasons:
+  ## (i) efficiency: much faster indexing on tibble than move2
+  ## (ii) reduce redundancy of repeated track data on each subset of accdata
+  ## after the binding step
+  acc <- acc |> 
+    dplyr::mutate(
+      acc_trk_dt = purrr::map(acc_dt, \(x) if(is.null(x)) NULL else mt_track_data(x)),
+      acc_dt = purrr::map(acc_dt, \(x) if(is.null(x)) NULL else as_tibble(x))
+    )
+
+  ## Join acc data and location data (animal-level)
+  all_data <- acc |> 
+    dplyr::mutate(
+      loc_dt = purrr::map(
+        .data[[trk_id_col]], 
+        ~filter_track_data(data, .track_id = .))
+      )
+     
+  ## Merge acc data to loc data based on time according to merging rule
+  ## (row-wise processing, i.e at animal-level)
+  all_data <- all_data |> 
+    dplyr::mutate(
+      loc_dt = purrr::pmap(
+        .l = list(acc_dt, loc_dt), 
+        .f = \(a, l){
+          merge_acc_to_loc(a, l, time_id_col, merging_rule)
+        }, 
+        .progress = TRUE)
+    )
   
   
-  #logger.info("We are done my friend!")
+  
+  # Prepare data for outputting  -----------------------------------------------
+  logger.info("Preparing data for outputing")
+  
+  # Stack up animal-level updated location data for outputting
+  if(nrow(all_data) == 1){
+    # required because, for some unidentified reason, `mt_stack()` fails for single element lists in some studies
+    data_output <- all_data$loc_dt[[1]]
+  }else{
+    data_output <- mt_stack(all_data$loc_dt)
+  }
+  
+  # Add acc download info to track data
+  updated_trk_dt <- dplyr::left_join(
+    mt_track_data(data_output),
+    all_data |> dplyr::select(-acc_dt, -acc_trk_dt, -loc_dt)
+  )
+  
+  data_output <- data_output |> mt_set_track_data(updated_trk_dt)
+  
+  
+  if(store_acc_track_info){
+    # Add original track data from downloaded acc data as an attribute of the output loc data
+    acc_trk_dt <- all_data$acc_trk_dt |> purrr::compact()
+    
+    if(length(acc_trk_dt) > 0){
+      if(length(acc_trk_dt) == 1){
+        acc_trk_dt <- acc_trk_dt[[1]]
+      }else if(length(acc_trk_dt) > 1){
+        acc_trk_dt <- acc_trk_dt |> purrr::list_rbind()
+      }  
+      attr(data_output, "acc_track_data") <- acc_trk_dt
+    }
+  }
+  
+  
+  # Export relevant data as artefacts ------------------------------------------
+  saveRDS(acc, file = appArtifactPath("downloaded_acc_data.rds"))
+  
+  
+  # EOF ------------------------------------------------------------------------
   logger.info("Done! App has finished all its tasks")
   
-  ## provide my result to the next app in the MoveApps workflow
-  #mt_stack(dt_with_acc, dt_without_acc)
-  invisible()
+  return(data_output)
 }
 
 
@@ -202,59 +318,158 @@ rFunction = function(data, usr, pwd){
 
 
 
-# /////////////////////////////////////////////////////////////////////////////
-preprocess_acc <- function(.data){
+#' /////////////////////////////////////////////////////////////////////////////
+merge_acc_to_loc <- function(.acc, .loc, time_col, merging_rule){
+  
+  if(not_null(.acc)){
+    # indexes mapping timepoints in acc data to timeline of loc data
+    time_mapping <- snap_times_to_timeline(
+      timeline = .loc[[time_col]], 
+      timepoints = .acc[[time_col]], 
+      rule = merging_rule
+    )
+    
+    # split acc data to list following time mapping
+    acc_ls <- split(time_mapping, time_mapping$tmln_idx) |> 
+      map(~.acc[.x$tmpt_idx, ])
+    
+    # merge acc data to each event in location data. Need to populate
+    # list column first so that indexing works
+    .loc$acc_dt <- list(NULL)
+    .loc$acc_dt[unique(time_mapping$tmln_idx)] <- acc_ls
+    return(.loc)
+    
+  }else{
+    dplyr::mutate(.loc, acc_dt = list(NULL))
+  }
+}
+
+
+
+
+#' /////////////////////////////////////////////////////////////////////////////
+#' Allocates time-points to a reference timeline based on a merging `rule`:
+#'  
+#'  @param timeline a date-time vector, providing the reference timeline
+#'  @param timpoints a date-time vector, the time-points of interest
+#'  @param rule a single character string, taking one of the following two values:
+#'    - `nearest`: allocates each time-point to the closest timeline element, 
+#'    which can either occur before or after the time-point
+#'    - `latest`: allocates each time-point to the latest timeline element occurring 
+#'    before the time-point
+#' 
+snap_times_to_timeline <- function(timeline, 
+                                   timepoints, 
+                                   rule = c("nearest", "latest")){
+  
+  # input validation
+  if(is.unsorted(timeline, na.rm = TRUE)) stop("`timeline` must be ordered")
+  match.arg(rule)
+ 
+  #' Matrix of differences between the two time vectors
+  #' output dims: nrow = length(timepoints), ncol = length(timeline)
+  diffs <- outer(
+    timepoints, 
+    timeline, 
+    \(x, y) as.numeric(difftime(x, y, units = "secs"))
+  )
+  
+  # indices of timeline points to which timepoints are allocated to
+  tmln_idx <- switch(
+    rule,
+    "nearest" = max.col(1/abs(diffs), ties.method = "first"),
+    "latest" = max.col(1/diffs, ties.method = "first")
+  )
+  
+  # linked table
+  tibble(
+    tmpt_idx = 1:length(tmln_idx),
+    tmln_idx
+  )
+}
+
+
+
+
+#' /////////////////////////////////////////////////////////////////////////////
+#' ACC data processing
+#' 
+#' Processes the ACC data at an individual level into a standardized ACC format.
+#' The output object contains one burst of ACC measurements per row (nested in
+#' list-column named `acc_burst`). Each row specifies an event when a burst of
+#' ACC values (per active axis) were sampled, with `tm_col` providing the start
+#' time of the burst. Data can optionally be thinned to only return a single
+#' event whithin a given `time_filter` time window (in minutes)
+#' 
+#' @param data a `move2` object with accelerometer data
+#' @param time_filter a numeric value specifying the time interval to subset the
+#'   data records (`0` means no thinning applied). Unit: minutes
+#'   
+process_acc <- function(data, time_filter = 0){
   
   # input validation -------------------------------------
   # check if time is in ascending order
-  assertthat::assert_that(mt_is_time_ordered(.data))
+  assertthat::assert_that(mt_is_time_ordered(data))
   
-  # check if data is for a single individual
-  if(length(unique(mt_track_id(.data))) > 1){
+  # check if data belongs to a single individual
+  if(length(unique(mt_track_id(data))) > 1){
     stop("Unable to pre-process ACC data - provided data must be from a single individual")
   } 
   
-  # store move2 data and identifiers, to retrieve later --------------------------
-  # track data
-  track_dt <- mt_track_data(.data)
-  # time column name, 
-  tm_col <- mt_time_column(.data)
-  # track id column
-  id_col <- mt_track_id_column(.data)
+  # store move2 data and identifiers, to retrieve later ------------------
+  track_dt <- mt_track_data(data)
+  tm_col <- mt_time_column(data)
+  id_col <- mt_track_id_column(data)
+  event_id_col <- grep("event(_|.)id", names(data), value = TRUE)
   
+  # Pre-processing  ----------------------------------------------------
+  # For extra safety, as downloaded data should come already ordered and without
+  # NAs in timestamps
+  data <- data |>
+    # drop events with missing timestamps
+    dplyr::filter(!is.na(.data[[tm_col]])) |>
+    # order by time within track
+    dplyr::arrange(.data[[id_col]], .data[[tm_col]])
+
   
-  # Standardize format ---------------------------------
+  # Standardize format -------------------------------------------------
   
-  # Depending on format type (i.e. nested or plain), provided data reshaped to
-  # have bursts of ACC nested in a list-column named `acc_bursts`, i.e. one
-  # burst per row. Type (raw or non-raw) and origin (eobs or non-eobs) of ACC
-  # also stored.
+  # Depending on format type (i.e. nested or plain), provided data reshaped
+  # accordingly to have bursts of ACC nested in a list-column named
+  # `acc_bursts`, i.e. one burst per row. Type (raw or non-raw) and origin (eobs
+  # or non-eobs) of ACC also recorded.
   #
-  # NOTE: Code assumes types of data and tag origin are mutually exclusive at the
-  # animal level - i.e., .data can only contain either raw or non-raw acc, from
+  # NOTE: Code assumes type of data and tag origin are mutually exclusive at the
+  # animal level - i.e., data can only contain either raw or non-raw acc, from
   # eobs or non-eobs tags
   
   # get column names
-  cols <- names(.data)
+  cols <- names(data)
   
   # get format of acc data
-  acc_format <- get_acc_format(.data)
+  acc_format <- get_acc_format(data)
   
   if(acc_format == "nested"){
+    
+    # thin data by time window. Doing it here for efficiency (i.e. only
+    # processing bursts for the thinned data)
+    if(time_filter > 0){
+      data <- data |> 
+        mt_filter_per_interval(criterion = "first", unit = paste0(time_filter, " mins"))  
+    }
     
     # get column names with nested acc and axes specification
     acc_col <- grep("(A|a)ccelerations(_raw)?$", cols, value = TRUE)
     axes_col <- grep("acceleration_axes", cols, value = TRUE)
     
     # convert character-type acc data to matrix and store in list-column
-    .data <- .data |> 
+    data <- data |> 
       dplyr::mutate(
-        acc_bursts = purrr::map2(.data[[acc_col]], .data[[axes_col]], acc_string_to_matrix),
+        acc_burst = purrr::map2(.data[[acc_col]], .data[[axes_col]], acc_string_to_matrix),
         is_acc_raw = grepl("raw", acc_col),
         is_acc_eobs = grepl("eobs", acc_col)
       ) |> 
       dplyr::select(!all_of(c(acc_col, axes_col)))
-    
     
   }else if(acc_format == "plain"){
     
@@ -267,61 +482,72 @@ preprocess_acc <- function(.data){
     axes_names <- paste0("acc", stringr::str_sub(acc_axis_cols, start = -2, end = -1))
 
     # Identify acc bursts based on timestamp and nests bursts as list-column
-    #
     # NOTE: Some accelerometer tags provide tilt data alongside acceleration
-    #
-    # HACK (minor): For some reason, nesting does not work unless move2 is
-    # converted to data.frame. Therefore, need to collect required information
-    # for back-conversion to move2
-    
-    # reshape data
-    .data <- .data |> 
+    data <- data |> 
+      # tidyr::nest() doesn't work with move2, so needs convertion to tibble
+      dplyr::as_tibble() |>
       # standardize acc axis column names
       dplyr::rename_with(
         .fn = \(x) axes_names,
         .cols = dplyr::matches("acceleration_(raw_)?[xXyYzZ]$")
       ) |>
-      as.data.frame() |>
       # identify data bursts
       dplyr::mutate(burst_id = mark_time_bursts(.data[[tm_col]])) |> 
       # nest acc data by bursts (including tilt, if present, event_id and time, as they're all row-specific)
-      tidyr::nest(acc_bursts = c(dplyr::matches("_[xXyYzZ]$"), event_id, dplyr::all_of(tm_col))) |> 
+      tidyr::nest(
+        acc_burst = c(dplyr::matches("_[xXyYzZ]$"), event_id, dplyr::all_of(tm_col))
+        ) |> 
       dplyr::mutate(
         # set time column as the starting time of burst
-        timestamp = purrr::map(acc_bursts, ~ first(.[[tm_col]])),  
-        # drop non-acceleration columns and convert to matrix for faster summarising below
-        acc_bursts = purrr::map(acc_bursts, ~ as.matrix(.[, axes_names])), 
+        timestamp = purrr::map(acc_burst, ~ first(.[[tm_col]])),  
+        # set even ID as the id of first entry of burst
+        event_id = purrr::map(acc_burst, ~ first(.[[event_id_col]])),
+        # Derive burst duration, in secs
+        acc_burst_duration = purrr::map_dbl(acc_burst, \(x){
+          difftime(last(x$timestamp), first(x$timestamp), units = "secs")}),
+        # Derive acc sampling frequency
+        acc_sampling_frequency = purrr::map_int(acc_burst, nrow)/acc_burst_duration,
+        acc_sampling_frequency = units::set_units(acc_sampling_frequency, Hz),
+        # drop non-acceleration columns and convert to matrix for consistency with nested format above
+        acc_burst = purrr::map(acc_burst, ~ as.matrix(.[, axes_names])),
         # extra info on type of acc data
-        is_acc_raw, is_acc_eobs 
+        is_acc_raw, is_acc_eobs
       ) |>
-      tidyr::unnest(timestamp)
+      tidyr::unnest(c(timestamp, event_id))
     
     # update time column name
     tm_col <- "timestamp"
+    
+    # convert back to move2 
+    data <- data |>
+      mt_as_move2(time_column = tm_col, track_id_column = id_col) |>
+      mt_set_track_data(track_dt)
+    
+    # thin data by time window. For plain format, thinning only after reshaping,
+    # otherwise filtering would be applied to single raw acc values
+    if(time_filter > 0){
+      data <- data |> 
+        mt_filter_per_interval(criterion = "first", unit = paste0(time_filter, " mins"))
+    }
     
   }else{
     stop("Unable to determine the format of the ACC data.")
   }
   
-  # Summarise and add relevant attributes  ----------------------------
-  .data <- .data |>
-    dplyr::mutate(
-      mean = purrr::map(acc_bursts, ~ apply(., 2, mean, na.rm = TRUE)),
-      var = purrr::map(acc_bursts, ~ apply(., 2, var, na.rm = TRUE))
-    ) |>
-    tidyr::unnest_wider(c(mean, var), names_sep = "_") |>
-    # add variables required for binding to location data
-    dplyr::mutate(
-      yearmonthday = gsub( "-", "", substr(timestamp, 1, 10)),
-      hour_dec = time_to_decimal_hours(timestamp)
-    )
-  
-  # convert back to move2 ----------------------------
-  .data <- .data |>
-    mt_as_move2(time_column = tm_col, track_id_column = id_col) |>
-    mt_set_track_data(track_dt)
-  
-  return(.data)
+  # # Summarise and add relevant attributes  ----------------------------
+  # data <- data |>
+  #   dplyr::mutate(
+  #     mean = purrr::map(acc_bursts, ~ apply(., 2, mean, na.rm = TRUE)),
+  #     var = purrr::map(acc_bursts, ~ apply(., 2, var, na.rm = TRUE))
+  #   ) |>
+  #   tidyr::unnest_wider(c(mean, var), names_sep = "_") |>
+  #   # add variables required for binding to location data
+  #   dplyr::mutate(
+  #     yearmonthday = gsub( "-", "", substr(timestamp, 1, 10)),
+  #     hour_dec = time_to_decimal_hours(timestamp)
+  #   )
+
+  return(data)
 }
 
 
@@ -339,17 +565,15 @@ preprocess_acc <- function(.data){
 #' binds datasets and thus columns from both formats are used together, making
 #' the function obsolete
 #' 
-#' @param .data a `move2` object with accelerometer data
+#' @param data a `move2` object with accelerometer data
 #' 
-get_acc_format <- function(.data){
+get_acc_format <- function(data){
   
   # input validation ------
-  if(!mt_is_move2(.data)){
-    stop("Called `.data` must be a `move2` object")
-  }
+  assertthat::assert_that(mt_is_move2(data))
   
   # get column names -------
-  cols <- names(.data)
+  cols <- names(data)
   
   # default classification
   out <- "undetermined"
@@ -361,7 +585,7 @@ get_acc_format <- function(.data){
     # extra check to validate nested format: acc axis are defined in column
     # `acceleration_axes` by design
     acc_axes_idx <- grep("acceleration_axes", cols)
-    if(any(grepl("[xXyYzZ]", .data[[acc_axes_idx[1]]]))){
+    if(any(grepl("[xXyYzZ]", data[[acc_axes_idx[1]]]))){
       out <- "nested"
     } 
   }
@@ -373,7 +597,7 @@ get_acc_format <- function(.data){
   
   if(length(acc_col_idx) != 0){
     # update classification if column has any non-NA element
-    if(!all(is.na(.data[[acc_col_idx[1]]]))){
+    if(!all(is.na(data[[acc_col_idx[1]]]))){
       out <- "plain"  
     }
   }
@@ -390,8 +614,8 @@ get_acc_format <- function(.data){
 #' belonging to separate bursts.
 #'
 #' @param timestamp a vector of class "POSIXct" with timestamps
-#' @param max_period numeric scalar, the maximum accepted period of bursts (i.e.
-#'   time lag between consecutive values in a burst).
+#' @param max_period numeric scalar, the maximum period in bursts (i.e.
+#'   time lag between consecutive values in a burst). Unit: seconds
 #' 
 #' @details 
 #' Burst period: duration between consecutive values in a burst. Unit: secs
@@ -402,10 +626,11 @@ get_acc_format <- function(.data){
 #'   for each detected time burst
 mark_time_bursts <- function(timestamp, max_period = 1){
   
-  if(!is.POSIXct(timestamp)) stop("`timestamp` must be of class POSIXct")
+  if(!lubridate::is.POSIXct(timestamp)) stop("`timestamp` must be of class POSIXct")
 
   lags <- units::as_units(diff(timestamp))
-  # making sure lags are in secs
+  
+  # making sure lags and max_period are in secs
   units(lags) <- units::make_units(s)
   
   lags <- c(as.numeric(lags), NA)
@@ -422,7 +647,6 @@ mark_time_bursts <- function(timestamp, max_period = 1){
         burst_id[c(i, i+1)] <- id  
       }else{
         lag_diff <- lags[i] - lags[i-1]
-        # TODO: deal with NAs in lags due to missing values in `timestamp`
         if(lag_diff > max_period){
           burst_id[i] <- id
           id <- id + 1
@@ -443,18 +667,19 @@ mark_time_bursts <- function(timestamp, max_period = 1){
 #' Converts burst of acc data provided as a single character string into a
 #' matrix, assuming values are single-space separated.
 #' 
-#' @param burst_str a character string
-#' @param acc_axis a character string
+#' @param burst_str a character string comprising a sample of acc values
+#'   collected during a burst. Values are separated by single space
+#' @param acc_axis a character string specifying the ACC axis (i.e. "XYZ", "XY"
+#'   or "X")
 acc_string_to_matrix <- function(burst_str, acc_axis){
   
   # input validation
-  if(!is.character(burst_str)) stop("`burst_str` must be a character string")
-  if(length(burst_str)>1) stop("`burst_str` must be a character string of length 1")
-  if(!is.character(acc_axis) & !is.factor(acc_axis)) stop("`acc_axis` must be a character")
-  if(length(acc_axis)>1) stop("`acc_axis` must be a character string of length 1")
+  assertthat::assert_that(assertthat::is.string(burst_str))
+  if(!is.character(acc_axis) & !is.factor(acc_axis)) stop("`acc_axis` must be a factor or a character")
+  if(length(acc_axis)>1) stop("`acc_axis` must be of length 1")
   
   # split sampled acceleration values along activated axes (X and/or Y and/or Z)
-  burst_str <- as.numeric(stringr::str_split(burst_str, "\\s")[[1]])
+  burst_str <- as.numeric(stringr::str_split(burst_str, "\\s+")[[1]])
   # get the ACC axes enabled in the current entry
   axesId <- tolower(sort(stringr::str_split(acc_axis, "")[[1]]))
   # matrix with sampled values allocated to the appropriate activated axes ("Measurements
@@ -468,11 +693,37 @@ acc_string_to_matrix <- function(burst_str, acc_axis){
 
 
 #' /////////////////////////////////////////////////////////////////////////////
+#' Add class `tbl_df` (aka 'tibble') to the event and track data sets in move2
+#' objects, for tidier printing
+#' 
+#' NOTE: not sure if MoveApps IO settings  preserves the `tbl_df` class to
+#' subsequent Apps, but it's worth the try...
+mt_as_move2_tibble <- function(x){
+  
+  assertthat::assert_that(mt_is_move2(x))
+  
+  # return x unchanged if already of class tibble
+  if(inherits(x, "tbl_df")){
+    return(x) 
+  }
+  
+  track_dt <- dplyr::as_tibble(mt_track_data(x))
+  track_id_col <- mt_track_id_column(x)
+  time_id_col <- mt_time_column(x)
+  
+  dplyr::as_tibble(x) |>
+    mt_as_move2(time_column = time_id_col , track_id_column =  track_id_col) |> 
+    mt_set_track_data(track_dt)
+  
+}
+
+
+#' /////////////////////////////////////////////////////////////////////////////
 #' Extracts the time of the day in decimal hours from a timestamp
 #' 
 time_to_decimal_hours <- function(datetime){
   
-  if(!is.POSIXct(datetime)) stop("Provided object is not of type POSIXct")
+  if(!lubridate::is.POSIXct(datetime)) stop("Provided object is not of type POSIXct")
   
   hour = lubridate::hour(datetime)
   minute = lubridate::minute(datetime)
@@ -482,4 +733,6 @@ time_to_decimal_hours <- function(datetime){
 
 
 #' /////////////////////////////////////////////////////////////////////////////
+#' Miscellaneous helpers
 not_null <- Negate(is.null)
+
