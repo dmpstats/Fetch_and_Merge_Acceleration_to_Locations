@@ -13,8 +13,36 @@
       "description": "Type-in the password of your Movebank account",
       "defaultValue": "",
       "type": "STRING"
-    }
-  ],
+    },
+    {
+      "id": "merging_rule",
+      "name": "Merging Criteria",
+      "description": "Choose how dowloaded Accelerometer data is merged to location data. ACC samples are allocated to:",
+      "type": "RADIOBUTTONS",
+      "defaultValue": "latest",
+      "options": [{
+        "value": "latest",
+        "displayText": "the latest location event available preceding sampling time"
+        },
+        {
+          "value": "nearest",
+          "displayText": "the closest-in-time location event"         
+        }]
+    },
+    {
+      "id": "store_acc_track_info",
+      "name": "Store ACC track information",
+      "description": "Store track data from merged ACC data as an attribute of the output `move2` object",
+      "type": "CHECKBOX",
+      "defaultValue": false
+    },
+        {
+      "id": "acc_timefilter",
+      "name": "Filter dowloaded ACC data by time interval",
+      "description": "The time interval, in minutes, for thinning the ACC data. Must be between 0 (no filtering) and 30.",
+      "defaultValue": 0,
+      "type": "INTEGER"
+    }],
   "dependencies": {
     "R": [
       {
@@ -22,54 +50,108 @@
       },
       {
         "name": "move2"
+      },
+      {
+        "name": "units"
+      },
+      {
+        "name": "dplyr"
+      },
+      {
+        "name": "tidyr"
+      },
+      {
+        "name": "purrr"
+      },
+      {
+        "name": "stringr"
+      },
+      {
+        "name": "assertthat"
+      },
+      {
+        "name": "sf"
+      },
+      {
+        "name": "rlang"
+      },
+      {
+        "name": "utils"
       }
     ]
   },
   "createsArtifacts": true,
-  "providedAppFiles": [
-    {
-      "settingId": "yourLocalFileSettingId",
-      "from": "data/local_app_files/provided-app-files/yourLocalFileSettingId/"
-    }
-  ],
   "license": {
     "key": "MIT"
   },
   "language": "eng",
   "keywords": [
-    "example",
-    "template"
+    "location",
+    "non-location",
+    "accelerometer",
+    "data merging"
   ],
   "people": [
     {
-      "firstName": "Charles",
+      "firstName": "Bruno",
       "middleInitials": null,
-      "lastName": "Darwin",
-      "email": "creator@example.com",
+      "lastName": "Caneco",
+      "email": "bruno@dmpstats.co.uk",
       "roles": [
         "author",
         "creator"
       ],
       "orcid": null,
-      "affiliation": null,
+      "affiliation": "DMP Statistical Solutions",
       "affiliationRor": null
+    },
+    {
+      "firstName": "Lindesay",
+      "middleInitials": "",
+      "lastName": "Scott-Hayward",
+      "email": "lass@st-andrews.ac.uk",
+      "roles": [
+        "author",
+        "creator"
+      ],
+      "orcid": "0000-0003-3402-533X",
+      "affiliation": "University of St Andrews",
+      "affiliationRor": "https://ror.org/02wn5qz54"
+    },
+    {
+      "firstName": "Monique",
+      "middleInitials": "",
+      "lastName": "MacKenzie",
+      "email": "monique.mackenzie@st-andrews.ac.uk",
+      "roles": [
+        "author",
+        "creator"
+      ],
+      "orcid": "0000-0002-8505-6585",
+      "affiliation": "University of St Andrews",
+      "affiliationRor": "https://ror.org/02wn5qz54"
+    },
+    {
+      "firstName": "Callum",
+      "middleInitials": "J.",
+      "lastName": "Clarke",
+      "email": "cjosephclarke@outlook.com",
+      "roles": [
+        "author",
+        "creator"
+      ],
+      "orcid": null,
+      "affiliation": "University of St Andrews",
+      "affiliationRor": "https://ror.org/02wn5qz54"
     }
   ],
   "funding": [
     {
-      "name": "funder name",
-      "comment": "grant for App"
-    }
-  ],
-  "references": [
-    {
-      "type": "IsDescribedBy",
-      "note": "Darwin, C. 1900. The creation. Journal XY. 1-2",
-      "url": "https://anylink.xyz"
+      "name": "",
+      "comment": null
     }
   ],
   "documentation": {
-    "url": "https://github.com/yourAccount/my-app/README.md"
+    "url": "https://github.com/dmpstats/Fetch_and_Bind_Acceleration_to_Locations/blob/master/README.md"
   }
 }
-
