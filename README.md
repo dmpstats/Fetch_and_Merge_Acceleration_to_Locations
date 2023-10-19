@@ -66,20 +66,22 @@ as follows:
     events, consecutive ACC events may be allocated to the same location
     event.
 
-6.  Prepare merged data to output. The output data is a move2 location
+6.  Prepare merged data to output. The output data is a `move2` location
     object comprising the entire content of the input data with the
     following add-ons:
 
-    - *event data*: the list-colum `acc_dt` comprising the downloaded
+    - *event data*: the list-column `acc_dt` comprising the downloaded
       and merged ACC events
 
     - *track data*: columns `acc_dwn_start_time`, `acc_dwn_end_time` and
       `acc_in_timespan` providing information about the ACC downloading
       step.
 
-    - *move2 attribute*: `acc_merging_rule` specifying the chosen
-      merging criteria (retrievable via
-      `attr(output, "acc_merging_rule")`)
+    - *object attribute*: `acc_merging_rule` specifying the chosen
+      merging criteria - retrievable via
+      `attr(output, "acc_merging_rule")`
+
+<br />
 
 <div>
 
