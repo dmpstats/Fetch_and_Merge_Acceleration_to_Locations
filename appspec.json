@@ -22,11 +22,11 @@
       "defaultValue": "latest",
       "options": [{
         "value": "latest",
-        "displayText": "the latest location event available preceding sampling time"
+        "displayText": "the latest recorded location available preceding sampling time"
         },
         {
           "value": "nearest",
-          "displayText": "the closest-in-time location event"         
+          "displayText": "the closest-in-time recorded location"         
         }]
     },
     {
@@ -147,7 +147,7 @@
   ],
   "funding": [
     {
-      "name": "",
+      "name": "North Carolina Zoo, US",
       "comment": null
     }
   ],
