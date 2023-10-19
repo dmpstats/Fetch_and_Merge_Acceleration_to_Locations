@@ -17,7 +17,7 @@ large_gps_nam <- readRDS("dev/vult_nam_large.rds")
 usr <- Sys.getenv("vult_usr")
 pwd <- Sys.getenv("vult_pwd")
 
-options(pillar.width = Inf)
+#options(pillar.width = Inf)
 
 default_app_config <- jsonlite::fromJSON("app-configuration-secrets.json"); default_app_config
 
@@ -43,7 +43,7 @@ saveRDS(test_inputs$gps_vult_sa, "data/raw/input_sdk_testing.rds")
 source("sdk.R")
 
 output <- readRDS("data/output/output.rds"); output
-artifact_acc_dwnld <- readRDS("data/output/downloaded_acc_data.csv"); artifact_acc_dwnld
+artifact_acc_dwnld <- readRDS("data/output/downloaded_acc_data.rds"); artifact_acc_dwnld
 
 
 # ----- AVulture SOP Namibia vultures  ----------
@@ -51,7 +51,7 @@ saveRDS(test_inputs$gps_vult_nam, "data/raw/input_sdk_testing.rds")
 source("sdk.R")
 
 output <- readRDS("data/output/output.rds"); output
-artifact_acc_dwnld <- readRDS("data/output/downloaded_acc_data.csv"); artifact_acc_dwnld
+artifact_acc_dwnld <- readRDS("data/output/downloaded_acc_data.rds"); artifact_acc_dwnld
 
 # ----- GAIA vultures from africa  ----------------
 saveRDS(test_inputs$gps_vult_gaia, "data/raw/input_sdk_testing.rds")
