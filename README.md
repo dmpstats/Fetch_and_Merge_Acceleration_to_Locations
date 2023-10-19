@@ -95,6 +95,8 @@ as follows:
 
 </div>
 
+<br />
+
 ### Input data
 
 `move2` location object

@@ -64,8 +64,8 @@ on recording timestamps and according to a choice between two merging criteria:
     allocated to the same location event.
 
 
-6. Prepare merged data to output. The output data is a `move2` location object
-comprising the entire content of the input data with the following add-ons:
+6. Prepare merged data for output, where `output` is a `move2` location object
+containing the entire input data along with the following additions:
 
     - *event data*: the list-column `acc_dt` comprising the downloaded and merged 
     ACC events
@@ -73,8 +73,10 @@ comprising the entire content of the input data with the following add-ons:
     - *track data*: columns `acc_dwn_start_time`, `acc_dwn_end_time` and 
     `acc_in_timespan` providing information about the ACC downloading step.
     
-    - *object attribute*: `acc_merging_rule` specifying the chosen merging 
-    criteria - retrievable via `attr(output, "acc_merging_rule")`
+    - *object attributes*: 
+        - `acc_merging_rule` specifying the selected merging criteria
+        - `acc_track_data` providing the track data component of the merged 
+        ACC data
 
 
 
@@ -87,6 +89,7 @@ MoveApps has plans to relax this restriction in the future (e.g. multiple data
 inputs on Apps), so this App may eventually become deprecated.
 :::
 
+<br />
 
 
 ### Input data
@@ -96,14 +99,16 @@ inputs on Apps), so this App may eventually become deprecated.
 
 ### Output data
 
-`move2` location object
+`move2` location object (see details in point 6. above)
 
 
 
 
 ### Artefacts
 
-None
+    - `downloaded_acc_data.rds`: and `tibble` object with downloaded and processed
+    ACC data, with ACC events and track data and nested by animal in list-column
+    `acc_dt`
 
 
 ### Parameters
