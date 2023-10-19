@@ -35,7 +35,7 @@ as follows:
 
     - Downloaded data is reshaped to return bursts of ACC values nested
       in a list-column named `acc_bursts`. Therefore, each row of
-      standardized ACC represents the event at which a burst of ACC
+      standardized ACC represents an event at which a burst of ACC
       values (per active axis) was recorded, with the timestamp column
       specifying the starting time of the burst.
 
@@ -49,9 +49,9 @@ as follows:
       lack of memory issues, when processing high-frequency ACC data
       (e.g. 1 burst every couple of seconds).
 
-5.  Merge ACC events to location events of the same animal/track based
-    on recording timestamps and according to a choice of two merging
-    rules:
+5.  Merge processed ACC events to location events of the same
+    animal/track based on recording timestamps and according to a choice
+    between two merging criteria:
 
     - `"latest"`: ACC events are allocated to the latest location event
       preceding the starting time at which ACC bursts were recorded
@@ -60,27 +60,26 @@ as follows:
       location event, which can occur either before or after the ACC
       sampling starting time.
 
-    This means bla bla
+    ACC events are joined to corresponding location events in a
+    list-column named `acc_dt`. Data nesting is required here as,
+    depending on the frequency of ACC events relative to location
+    events, consecutive ACC events may be allocated to the same location
+    event.
 
-<!-- 
+6.  Prepare merged data to output. The output data is a move2 location
+    object comprising the entire content of the input data with the
+    following add-ons:
 
-more than one burst/event associated with wich location event
+    - *event data*: the list-colum `acc_dt` comprising the downloaded
+      and merged ACC events
 
-5. Binds acceleration data, consisting of measurements at 3 accelerometer axis,
-to each location event in the input dataset based on individual, day and time of
-the day. 
+    - *track data*: columns `acc_dwn_start_time`, `acc_dwn_end_time` and
+      `acc_in_timespan` providing information about the ACC downloading
+      step.
 
- -->
-
-6.  Outputs location data with merged ACC data with relevant info on
-    merging
-
-<!-- 
-Describe added columns in both event and track data. Also mention the ACC track data stored as an object attribute
-
-including object attributes
-
--->
+    - *move2 attribute*: `acc_merging_rule` specifying the chosen
+      merging criteria (retrievable via
+      `attr(output, "acc_merging_rule")`)
 
 <div>
 
