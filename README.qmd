@@ -34,31 +34,31 @@ for each individual;
 Movebank in plain format (one ACC measurement on each active axis per row) or
 nested format (burst of consecutive AAC values stored per row). In this step:
 
-  - Downloaded data is reshaped to return bursts of ACC values nested in a
-  list-column named `acc_bursts`. Therefore, each row of standardized ACC
-  represents the event at which a burst of ACC values (per active axis) was
-  recorded, with the timestamp column specifying the starting time of the burst.
+    - Downloaded data is reshaped to return bursts of ACC values nested in a
+    list-column named `acc_bursts`. Therefore, each row of standardized ACC
+    represents the event at which a burst of ACC values (per active axis) was
+    recorded, with the timestamp column specifying the starting time of the burst.
   
-  - The type (raw or non-raw) and tag origin (eobs or non-eobs) of ACC samples 
-  are also added as data attributes. 
+    - The type (raw or non-raw) and tag origin (eobs or non-eobs) of ACC samples 
+    are also added as data attributes. 
   
-  - ACC data can optionally be thinned down to only retain a single ACC burst
-  event within a given time interval via the parameter `acc_timefilter` (details
-  in the Settings section below). This feature can be useful to avoid long
-  computations, and potentially lack of memory issues, when processing
-  high-frequency ACC data (e.g. 1 burst every couple of seconds).
+    - ACC data can optionally be thinned down to only retain a single ACC burst
+    event within a given time interval via the parameter `acc_timefilter` (details
+    in the Settings section below). This feature can be useful to avoid long
+    computations, and potentially lack of memory issues, when processing
+    high-frequency ACC data (e.g. 1 burst every couple of seconds).
 
 
 5. Merge ACC events to location events of the same animal/track based on recording
 timestamps and according to a choice of two merging rules:
 
-  - `"latest"`: ACC events are allocated to the latest location event preceding 
-  the starting time at which ACC bursts were recorded
+    - `"latest"`: ACC events are allocated to the latest location event preceding 
+    the starting time at which ACC bursts were recorded
   
-  - `"nearest"`: ACC events are allocated to the closest-in-time location event, 
-  which can occur either before or after the ACC sampling starting time.
-  
-  <!-- #This means -->
+    - `"nearest"`: ACC events are allocated to the closest-in-time location event, 
+    which can occur either before or after the ACC sampling starting time.
+    
+  This means bla bla
 
   
 
