@@ -58,7 +58,7 @@ timestamps and according to a choice of two merging rules:
     - `"nearest"`: ACC events are allocated to the closest-in-time location event, 
     which can occur either before or after the ACC sampling starting time.
     
-  This means bla bla
+    This means bla bla
 
   
 
