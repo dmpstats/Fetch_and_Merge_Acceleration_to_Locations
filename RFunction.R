@@ -48,7 +48,6 @@ rFunction = function(data,
 
   trk_dt <- mt_track_data(data)
   trk_id_col <- mt_track_id_column(data)
-  #trk_ids <- trk_dt[[trk_id_col]]
   trk_dt_colnames <- names(trk_dt)
   study_id_col <- grep("study(_|.)id", trk_dt_colnames, value = TRUE)
   study_id <- unique(trk_dt[[study_id_col]])
@@ -269,7 +268,7 @@ rFunction = function(data,
   
   
   # Prepare data for outputting  -----------------------------------------------
-  logger.info("Preparing data for outputing")
+  logger.info("Preparing data to output")
   
   # Stack up animal-level updated location data for outputting
   if(nrow(all_data) == 1){
@@ -301,6 +300,11 @@ rFunction = function(data,
       attr(data_output, "acc_track_data") <- acc_trk_dt
     }
   }
+  
+  
+  # Add chosen merging rule as an object attribute
+  attr(data_output, "acc_merging_rule") <- merging_rule
+    
   
   
   # Export relevant data as artefacts ------------------------------------------
