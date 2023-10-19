@@ -77,7 +77,7 @@ as follows:
       `acc_in_timespan` providing information about the ACC downloading
       step.
 
-    - *object attributes*:
+    - *object attributes*[^1]:
 
       - `acc_merging_rule` specifying the selected merging criteria
       - `acc_track_data` providing the track data component of the
@@ -136,3 +136,5 @@ due to invalid log-in details, the app will return an error reminding
 the user to provide valid credentials.
 
 ### Example usage of merged data
+
+[^1]: These are retrievable with e.g. `attr(output, "acc_merging_rule")`

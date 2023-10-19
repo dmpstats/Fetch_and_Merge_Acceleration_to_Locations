@@ -73,10 +73,12 @@ containing the entire input data along with the following additions:
     - *track data*: columns `acc_dwn_start_time`, `acc_dwn_end_time` and 
     `acc_in_timespan` providing information about the ACC downloading step.
     
-    - *object attributes*: 
+    - *object attributes*[^1]: 
         - `acc_merging_rule` specifying the selected merging criteria
         - `acc_track_data` providing the track data component of the merged 
         ACC data
+        
+    [^1]: These are retrievable with e.g. `attr(output, "acc_merging_rule")`
 
 
 
