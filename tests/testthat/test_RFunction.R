@@ -114,7 +114,7 @@ test_that("rFunction's option `store_acc_track_info` works", {
 test_that("Acc data is merged to location data as expected", {
   
   local_edition(3) # required for `expect_snapshot()`
-  withr::local_options(pillar.width = Inf) # needed to keep output consistency for `expect_snapshot()`
+  withr::local_options(pillar.width = 1000) # needed to keep output consistency for `expect_snapshot()`
   
   set.seed(100)
   acc <- process_acc(acc_testsets$nested_XYZ_raw)
@@ -123,34 +123,42 @@ test_that("Acc data is merged to location data as expected", {
   loc$geometry <- sf::st_sfc(apply(loc_pts, 1, sf::st_point, simplify = FALSE))
 
   # merging rule: "nearest"
-  merged_nearest <- merge_acc_to_loc(acc, loc, time_col = "timestamp", merging_rule = "nearest")
+  merged_nearest <- merge_acc_to_loc(
+    acc, loc, time_col = "timestamp", 
+    merging_rule = "nearest") |> 
+    dplyr::mutate(
+      acc_min_time = purrr::map(acc_dt, ~min(.$timestamp)),
+      acc_max_time = purrr::map(acc_dt, ~max(.$timestamp))
+    ) |> 
+    tidyr::unnest(c(acc_min_time, acc_max_time)) |> 
+    dplyr::select(event_id, acc_dt, acc_min_time, acc_max_time)
   
-  expect_snapshot(
-    merged_nearest |> 
-      dplyr::mutate(
-        acc_min_time = purrr::map(acc_dt, ~min(.$timestamp)),
-        acc_max_time = purrr::map(acc_dt, ~max(.$timestamp))
-      ) |> 
-      tidyr::unnest(c(acc_min_time, acc_max_time))
-  )
+  expect_snapshot(merged_nearest)
   
   
   # merging rule: "latest"
-  merged_latest <- merge_acc_to_loc(acc, loc, time_col = "timestamp", merging_rule = "latest")
+  merged_latest <- merge_acc_to_loc(
+    acc, loc, time_col = "timestamp", 
+    merging_rule = "latest") |> 
+    dplyr::mutate(
+      acc_min_time = purrr::map(acc_dt, ~min(.$timestamp)),
+      acc_max_time = purrr::map(acc_dt, ~max(.$timestamp))
+    ) |> 
+    tidyr::unnest(c(acc_min_time, acc_max_time)) |> 
+    dplyr::select(event_id, acc_dt, acc_min_time, acc_max_time)
   
-  expect_snapshot(
-    merged_latest |> 
-      dplyr::mutate(
-        acc_min_time = purrr::map(acc_dt, ~min(.$timestamp)),
-        acc_max_time = purrr::map(acc_dt, ~max(.$timestamp))
-      ) |> 
-      tidyr::unnest(c(acc_min_time, acc_max_time))
-  )
+  expect_snapshot(merged_latest)
 
-  # location entries with no ACC data have null in list-column `acc_dt`
-  expect_snapshot(
-    merge_acc_to_loc(acc[c(20:40, 70:90), ], loc, time_col = "timestamp", merging_rule = "latest")
-  )
+  
+  # location events with no ACC data have null in list-column `acc_dt`
+  merged <- merge_acc_to_loc(
+    acc[c(20:40, 70:90), ], loc, 
+    time_col = "timestamp", 
+    merging_rule = "latest") |> 
+    dplyr::select(event_id, acc_dt) |> 
+    dplyr::as_tibble()
+  
+  expect_snapshot(merged)
 
 })
 
