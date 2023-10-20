@@ -21,7 +21,7 @@ rFunction = function(data,
   
   # Input validation --------------------------------------------------------
   # These assertions are a bit redundant given definitions in appspec.json and
-  # checks done at the GUI level. HOWEVER, they're useful for dev and local testing
+  # checks done at the GUI level. HOWEVER, they're useful for local use and testing
   assertthat::assert_that(mt_is_move2(data))
   assertthat::assert_that(assertthat::is.string(usr))
   assertthat::assert_that(assertthat::is.string(pwd))
@@ -99,9 +99,10 @@ rFunction = function(data,
             "in the input data set. Skipping ACC dowloading and merging steps.")
     )
     # COMBAK: testing if the following warning message appears in the APP's output panel
-    warning("Accelerometer data is not collected for any of the animals in the ",
-            "input data set. Skipping ACC dowloading and merging steps.\n",
-            call. = FALSE)
+    rlang::warn(
+      paste("Accelerometer data is not collected for any of the animals in the ",
+            "input data set. Skipping ACC dowloading and merging steps."), 
+            class = "warn_acc_not_collected")
 
     data_output <- data |>  mt_set_track_data(trk_dt) |>  mutate(acc_dt = list(NULL))
     return(data_output)
@@ -113,6 +114,13 @@ rFunction = function(data,
       paste("User does not have permission to download Accelerometer data for any of",
             "the animals in the input data set. Skipping ACC dowloading and merging steps.")
     )
+    
+    # COMBAK: testing if the following warning message appears in the APP's output panel
+    rlang::warn(
+      paste("User does not have permission to download Accelerometer data for any of",
+            "the animals in the input data set. Skipping ACC dowloading and merging steps."),
+            class = "warn_no_download_permission")
+    
     
     data_output <- data |> mt_set_track_data(trk_dt) |> mutate(acc_dt = list(NULL))
     return(data_output)

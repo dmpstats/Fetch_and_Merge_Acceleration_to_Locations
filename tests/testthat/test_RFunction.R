@@ -5,6 +5,7 @@ library(sf)
 library(tidyr)
 library(units)
 library(withr)
+library(rlang)
 
 # read-in test data
 input3 <- readRDS(test_path("data", "input3_move2.rds"))
@@ -57,8 +58,17 @@ test_that("rFunction skips merging if user has no download permissions", {
   input_trk_dt$i_have_download_access <- FALSE
   input_dt <- input_dt |> mt_set_track_data(input_trk_dt)
   
-  output <- rFunction(input_dt, usr = usr, pwd = pwd, merging_rule = "latest")
+  # check that correct warning is issued
+  expect_warning(
+    output <- rFunction(input_dt, usr = usr, pwd = pwd, merging_rule = "latest"), 
+    regexp = "User does not have permission to download Accelerometer data"
+  )
   
+  # check that output data format is as expected
+  withCallingHandlers(
+    output <- rFunction(input_dt, usr = usr, pwd = pwd, merging_rule = "latest"),
+    warn_no_download_permission = function(cnd){ rlang::cnd_muffle(cnd) }
+  )
   # `acc_dt` list-column should be a list of NULLs
   expect_null(unlist(output$acc_dt))
   # output should be identical to input, bar the attributes (namely the track data)
@@ -75,15 +85,17 @@ test_that("rFunction skips merging if ACC data is not collected for any of the a
   input_trk_dt$sensor.type.ids <- "GPS"
   input_dt <- input_dt |> mt_set_track_data(input_trk_dt)
   
+  # check that correct warning is issued
   expect_warning(
     output <- rFunction(input_dt, usr = usr, pwd = pwd, merging_rule = "latest"), 
     regexp = "Accelerometer data is not collected for any of the animals"
   )
   
-  suppressWarnings(
-    output <- rFunction(input_dt, usr = usr, pwd = pwd, merging_rule = "latest")
+  # check that output data format is as expected
+  withCallingHandlers(
+    output <- rFunction(input_dt, usr = usr, pwd = pwd, merging_rule = "latest"),
+    warn_acc_not_collected = function(cnd){ rlang::cnd_muffle(cnd) }
   )
-  
   # `acc_dt` list-column should be a list of NULLs
   expect_null(unlist(output$acc_dt))
   # output should be identical to input, bar the attributes (namely the track data)
