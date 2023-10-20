@@ -10,6 +10,7 @@ library(withr)
 input3 <- readRDS(test_path("data", "input3_move2.rds"))
 acc_testsets <- readRDS(test_path("data", "acc_testsets.rds"))
 
+
 # Main `rFunction()`   -----------------------------------------------
 
 # Testing only higher-level functionality, as low-level data processing and
@@ -100,8 +101,7 @@ test_that("rFunction's option `store_acc_track_info` works", {
     filter_track_data(track == "TO_6485") |> 
     slice(1:5)
   
-  output <- rFunction(input_dt, usr = usr, pwd = pwd, 
-                      merging_rule = "latest", 
+  output <- rFunction(input_dt, usr = usr, pwd = pwd, merging_rule = "latest", 
                       store_acc_track_info = TRUE)
   
   expect_true(!is.null(attr(output, "acc_track_data")))
