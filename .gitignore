@@ -7,7 +7,6 @@ data/output/**
 !data/output/.keep
 app-configuration_secrets.json
 dev/acc_testsets_large.rds
-app-configuration-secrets.json
 dev/developing_acc_to_loc_app_files/
 dev/vult_gaia_large.rds
 dev/developing_acc_to_loc_app.html
