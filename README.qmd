@@ -163,35 +163,172 @@ throw an error if the specified interval is not between 0 and 30.
 
 
 
-
-
 ### Example usage of merged data
 
+```{r}
+#| echo: false
+#| include: false
+
+library(move2)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+source("RFunction.R")
+
+options(pillar.width = 500)
+
+# movebank credentials stored in HOME .Renviron file
+usr <- Sys.getenv("vult_usr")
+pwd <- Sys.getenv("vult_pwd")
+
+source(file.path("src/common/logger.R"))
+source(file.path("src/io/app_files.R"))
+source(file.path("src/io/io_handler.R"))
+
+data <- readRDS("data/raw/gps_vult_sa.rds") |>
+  filter_track_data(individual_local_identifier == "Bateleur_8887") |>
+  slice(1:10)
+
+#output_nearest <- rFunction(data, usr = usr, pwd = pwd, merging_rule = "nearest")
+```
+
+Let's start by running the App's underpinning `rFunction` for a given input data
+using the `"latest"` merging criteria.
+```{r}
+output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = "latest") |> 
+  dplyr::select(where(~all(!is.na(.)))) # dropping redundant columns
+
+```
+
+The merged Accelerometer (ACC) data is provided as `tibble` objects nested in list-column `acc_dt`.
+
+```{r}
+output
+```
+
+#### Accessing ACC data
+
+Retrieving ACC events recorded between the second and third location points can
+achieved by, e.g:
+
+```{r}
+output |> 
+  as_tibble() |> 
+  dplyr::slice(2) |> 
+  dplyr::select(acc_dt) |> 
+  tidyr::unnest(acc_dt)
+```
+
+
+Acceleration measurements recorded in each ACC event are nested in list-column
+`acc_burst`. Thus, the burst of ACC values in each active axis sampled in the
+first ACC event between the second and third location points is accessible via
+
+```{r}
+output |> 
+  as_tibble() |> 
+  dplyr::slice(2) |> 
+  dplyr::select(acc_dt) |> 
+  unnest(acc_dt) |> 
+  slice(1) |> 
+  mutate(acc_burst = map(acc_burst, as_tibble)) |> # required for nicer unnesting compared to the original matrix format
+  dplyr::select(acc_burst)|> 
+  tidyr::unnest(acc_burst)
+```
+
+
+#### Visualizing the difference between `"latest"` and `"nearest"` merging 
+
+*Stay tuned...*
 
 <!-- ```{r} -->
 <!-- #| echo: false -->
 <!-- #| include: false -->
 
-<!-- library(move2) -->
-<!-- source("RFunction.R") -->
-
-<!-- # movebank credentials stored in HOME .Renviron file -->
-<!-- usr <- Sys.getenv("vult_usr") -->
-<!-- pwd <- Sys.getenv("vult_pwd") -->
-
-<!-- source(file.path("src/common/logger.R")) -->
-<!-- source(file.path("src/io/app_files.R")) -->
-<!-- source(file.path("src/io/io_handler.R")) -->
-
-
-<!-- input_dt <- readRDS("data/raw/gps_vult_nam.rds") |>  -->
-<!--   filter_track_data(individual_local_identifier == "TO_6485") |>  -->
-<!--   slice(1:10) -->
-
-<!-- output_latest <- rFunction(input_dt, usr = usr, pwd = pwd, merging_rule = "latest") -->
+<!-- # merging via the nearest rule -->
+<!-- output_nearest <- rFunction(data, usr = usr, pwd = pwd, merging_rule = "nearest") |>  -->
+<!--   dplyr::select(where(~all(!is.na(.)))) # dropping redundant columns -->
 <!-- ``` -->
+
+
 
 <!-- ```{r} -->
-<!-- output_latest$acc_dt[[1]] -->
+<!-- #| code-fold: true -->
+
+<!-- output_unpacked <- output |>  -->
+<!--   dplyr::as_tibble() |>  -->
+<!--   # restrict to 3 location events -->
+<!--   slice(1:3) |>  -->
+<!--   mutate(acc_dt = purrr::map(acc_dt, \(acc_events){ -->
+<!--     burst_idx <<- 0  -->
+<!--     if(!is.null(acc_events)){ -->
+<!--       acc_events |>  -->
+<!--         mutate( -->
+<!--           acc_burst = purrr::pmap( -->
+<!--             list(eobs_acceleration_sampling_frequency_per_axis, timestamp, acc_burst),  -->
+<!--             \(freq, start_time, acc){ -->
+<!--               burst_idx <<- burst_idx + 1 -->
+
+<!--               acc |>  -->
+<!--                 dplyr::as_tibble() |>  -->
+<!--                 # downsize to only first 15 measurements, for tractability -->
+<!--                 slice(floor(seq(1, nrow(acc), length.out = 15))) |>  -->
+<!--                 dplyr::mutate( -->
+<!--                   acc_timestamp = seq.POSIXt(from = start_time, by = 1/freq, length.out = 15),  -->
+<!--                   .before = 1 -->
+<!--                 ) |>  -->
+<!--                 dplyr::mutate(burst_idx) -->
+<!--             }) -->
+<!--         ) |>  -->
+<!--         tidyr::unnest(acc_burst) |>  -->
+<!--         dplyr::rename(acc_event_id = event_id) |>  -->
+<!--         dplyr::select(acc_event_id, acc_timestamp, burst_idx, matches("acc_[xyz]")) -->
+<!--     } else NULL -->
+<!--   })) |>  -->
+<!--   unnest(acc_dt) -->
+
+
+<!-- output$acc_dt[[1]] -->
+
+
+<!-- output_unpacked |>  -->
+<!--   slice(1:30) |>  -->
+<!--   #filter(acc_event_id == 29979003282) |>  -->
+<!--   ggplot() + -->
+<!--   geom_point(aes(x = acc_timestamp, y = acc_x)) -->
+
+
 <!-- ``` -->
+
+
+
+
+
+
+#### Summarising ACC measurements relative to location events
+
+Summarizing acceleration values between consecutive location points may be
+required in downstream applications such as animal behavior classifiers.
+
+For instance, the variance of all acceleration values recorded
+between each location event (per active ACC axis) can be computed as
+
+```{r}
+output |> 
+  dplyr::mutate(
+    var = purrr::map(acc_dt, \(acc_events){
+      if(!is.null(acc_events$acc_burst)){
+        # bind list of matrices by row
+        all_bursts <- do.call(rbind, acc_events$acc_burst)
+        # variance in each active ACC axis
+        apply(all_bursts, 2, var)  
+      } else{
+        NULL
+      }
+    })
+  ) |> 
+  tidyr::unnest_wider(var, names_sep = "_")
+
+```
+
 
