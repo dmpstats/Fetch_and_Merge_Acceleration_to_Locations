@@ -267,10 +267,10 @@ rFunction = function(data,
   
   
   
-  # Prepare data for outputting  -----------------------------------------------
-  logger.info("Preparing data to output")
+  # Wrap-up and output   -----------------------------------------------
+  logger.info("Preparing data for output")
   
-  # Stack up animal-level updated location data for outputting
+  # Stack up animal-level updated location data for output
   if(nrow(all_data) == 1){
     # required because, for some unidentified reason, `mt_stack()` fails for single element lists in some studies
     data_output <- all_data$loc_dt[[1]]
