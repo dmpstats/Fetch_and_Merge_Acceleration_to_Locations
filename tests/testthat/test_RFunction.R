@@ -135,9 +135,7 @@ test_that("Acc data is merged to location data as expected", {
   loc$geometry <- sf::st_sfc(apply(loc_pts, 1, sf::st_point, simplify = FALSE))
 
   # merging rule: "nearest"
-  merged_nearest <- merge_acc_to_loc(
-    acc, loc, time_col = "timestamp", 
-    merging_rule = "nearest") |> 
+  merged_nearest <- merge_acc_to_loc(acc, loc, merging_rule = "nearest") |> 
     dplyr::mutate(
       acc_min_time = purrr::map(acc_dt, ~min(.$timestamp)),
       acc_max_time = purrr::map(acc_dt, ~max(.$timestamp))
@@ -149,9 +147,7 @@ test_that("Acc data is merged to location data as expected", {
   
   
   # merging rule: "latest"
-  merged_latest <- merge_acc_to_loc(
-    acc, loc, time_col = "timestamp", 
-    merging_rule = "latest") |> 
+  merged_latest <- merge_acc_to_loc(acc, loc, merging_rule = "latest") |> 
     dplyr::mutate(
       acc_min_time = purrr::map(acc_dt, ~min(.$timestamp)),
       acc_max_time = purrr::map(acc_dt, ~max(.$timestamp))
@@ -163,10 +159,7 @@ test_that("Acc data is merged to location data as expected", {
 
   
   # location events with no ACC data have null in list-column `acc_dt`
-  merged <- merge_acc_to_loc(
-    acc[c(20:40, 70:90), ], loc, 
-    time_col = "timestamp", 
-    merging_rule = "latest") |> 
+  merged <- merge_acc_to_loc(acc[c(20:40, 70:90), ], loc, merging_rule = "latest") |> 
     dplyr::select(event_id, acc_dt) |> 
     dplyr::as_tibble()
   
@@ -183,7 +176,7 @@ test_that("No data is lost after acc to location merging", {
   loc_pts <- matrix(c(rnorm(nrow(loc)), rnorm(nrow(loc))), ncol = 2)
   loc$geometry <- sf::st_sfc(apply(loc_pts, 1, sf::st_point, simplify = FALSE))
   
-  merged <- merge_acc_to_loc(acc, loc, time_col = "timestamp", merging_rule = "latest")
+  merged <- merge_acc_to_loc(acc, loc, merging_rule = "latest")
   
   merged_acc_trk_dt <- mt_track_data(merged$acc_dt[[1]])
   rebuilt_acc <- mt_stack(merged$acc_dt, .track_combine = "merge") |>

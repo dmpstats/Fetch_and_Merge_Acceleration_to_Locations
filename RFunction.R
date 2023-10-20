@@ -268,7 +268,7 @@ rFunction = function(data,
       loc_dt = purrr::pmap(
         .l = list(acc_dt, loc_dt), 
         .f = \(a, l){
-          merge_acc_to_loc(a, l, time_id_col, merging_rule)
+          merge_acc_to_loc(a, l, merging_rule)
         }, 
         .progress = TRUE)
     )
@@ -328,13 +328,18 @@ rFunction = function(data,
 
 
 #' /////////////////////////////////////////////////////////////////////////////
-merge_acc_to_loc <- function(.acc, .loc, time_col, merging_rule){
+merge_acc_to_loc <- function(.acc, .loc, merging_rule){
   
   if(not_null(.acc)){
+    
+    # ensuring correct time cols are called below
+    acc_time_col <- mt_time_column(.acc)
+    loc_time_col <- mt_time_column(.loc)
+    
     # indexes mapping timepoints in acc data to timeline of loc data
     time_mapping <- snap_times_to_timeline(
-      timeline = .loc[[time_col]], 
-      timepoints = .acc[[time_col]], 
+      timeline = .loc[[loc_time_col]], 
+      timepoints = .acc[[acc_time_col]], 
       rule = merging_rule
     )
     
