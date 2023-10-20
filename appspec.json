@@ -17,7 +17,7 @@
     {
       "id": "merging_rule",
       "name": "Merging Criteria",
-      "description": "Choose how dowloaded Accelerometer data is merged to location data. ACC samples are allocated to:",
+      "description": "Choose how downloaded Accelerometer data is merged to location data. ACC events are allocated to:",
       "type": "RADIOBUTTONS",
       "defaultValue": "latest",
       "options": [{
@@ -38,7 +38,7 @@
     },
         {
       "id": "acc_timefilter",
-      "name": "Filter dowloaded ACC data by time interval",
+      "name": "Filter downloaded ACC data by time interval",
       "description": "The time interval, in minutes, for thinning the ACC data. Must be between 0 (no filtering) and 30.",
       "defaultValue": 0,
       "type": "INTEGER"
