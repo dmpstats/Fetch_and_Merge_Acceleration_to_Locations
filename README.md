@@ -77,9 +77,9 @@ as follows:
       `acc_in_timespan` providing information about the ACC downloading
       step.
 
-    - *object attributes*[^1]:
+    - *object attributes*:
 
-      - `acc_merging_rule` specifying the selected merging criteria
+      - `acc_merging_rule` specifying the selected merging criteria[^1]
       - `acc_track_data` providing the track data component of the
         merged ACC data
 
@@ -109,32 +109,81 @@ as follows:
 
 ### Artefacts
 
-    - `downloaded_acc_data.rds`: and `tibble` object with downloaded and processed
-    ACC data, with ACC events and track data and nested by animal in list-column
-    `acc_dt`
+`downloaded_acc_data.rds`: a `tibble` object with downloaded and
+processed ACC data, with ACC events and track data nested by animal in
+list-columns `acc_dt` and `acc_trk_dt`
 
 ### Parameters
 
 **Movebank username** (`usr`): character string, the Movebank username.
-Default: `NULL`
+Default: `NULL`.
 
 **Movebank password** (`pwd`): character string, the Movebank password.
-Default: `NULL`
+Default: `NULL`.
+
+**Merging Criteria** (`merging_rule`): specify how downloaded
+Accelerometer data is merged to location data. ACC events can allocated
+to either:
+
+- the latest recorded location available preceding sampling time
+  (`"latest"`, the default), or
+- the closest-in-time recorded location (`"nearest"`)
+
+**Store ACC track information** (`store_acc_track_info`): check-box to
+choose whether to store track data from merged ACC data as an attribute
+of the output `move2` object. Default: `FALSE`.
+
+**Filter downloaded ACC data by time interval** (`acc_timefilter`): an
+integer defining the time interval, in minutes, for thinning the ACC
+data. Must be between 0 (no filtering) and 30. Unit: `minutes`; default:
+`0`
 
 ### Most common errors
 
-None yet, but most likely ones to occur are: - Miss-match in track names
-between location and non-location data
+None yet
 
 <!-- *Please describe shortly what most common errors of the App can be, how they occur and best ways of solving them.* -->
 
 ### Null or error handling
+
+**data**: the App will skip the merging step and return a modified
+version of the input data with an empty column `acc_dt` if:
+
+- Accelerometer data is not collected for any of the animals in the
+  input data,
+- the user does not have downloading permission for the study
+
+An informative warning is also issued.
 
 **Movebank username** (`usr`) and **Movebank password** (`pwd`): If one
 of the credentials are either NULL or connection to Movebank is voided
 due to invalid log-in details, the app will return an error reminding
 the user to provide valid credentials.
 
+**Filter downloaded ACC data by time interval** (`acc_timefilter`): The
+App will throw an error if the specified interval is not between 0 and
+30.
+
 ### Example usage of merged data
 
-[^1]: These are retrievable with e.g. `attr(output, "acc_merging_rule")`
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- #| include: false -->
+<!-- library(move2) -->
+<!-- source("RFunction.R") -->
+<!-- # movebank credentials stored in HOME .Renviron file -->
+<!-- usr <- Sys.getenv("vult_usr") -->
+<!-- pwd <- Sys.getenv("vult_pwd") -->
+<!-- source(file.path("src/common/logger.R")) -->
+<!-- source(file.path("src/io/app_files.R")) -->
+<!-- source(file.path("src/io/io_handler.R")) -->
+<!-- input_dt <- readRDS("data/raw/gps_vult_nam.rds") |>  -->
+<!--   filter_track_data(individual_local_identifier == "TO_6485") |>  -->
+<!--   slice(1:10) -->
+<!-- output_latest <- rFunction(input_dt, usr = usr, pwd = pwd, merging_rule = "latest") -->
+<!-- ``` -->
+<!-- ```{r} -->
+<!-- output_latest$acc_dt[[1]] -->
+<!-- ``` -->
+
+[^1]: retrievable via `attr(output, "acc_merging_rule")`
