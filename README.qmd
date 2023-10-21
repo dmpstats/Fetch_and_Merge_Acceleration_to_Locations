@@ -84,10 +84,11 @@ containing the entire input data along with the following additions:
 <br />
 
 ::: {.callout-note}
-This App is a workaround for the current restriction on MoveApps to
-initiate workflows from only one of either location or non-location data.
-MoveApps has plans to relax this restriction in the future (e.g. multiple data
-inputs on Apps), so this App may eventually become deprecated.
+The creation of this App was prompted by a current limitation in MoveApps, which
+allows Workflows to be initiated from either location or non-location data but
+not both simultaneously. MoveApps has plans to ease this restriction in the
+future, such as enabling multiple data inputs on Apps. Consequently, it is
+possible that this App may become obsolete in the future.
 :::
 
 <br />
@@ -162,8 +163,7 @@ throw an error if the specified interval is not between 0 and 30.
 
 
 
-
-### Example usage of merged data
+### Using the output data
 
 ```{r}
 #| echo: false
@@ -173,6 +173,8 @@ library(move2)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(MetBrewer)
+library(patchwork)
 source("RFunction.R")
 
 options(pillar.width = 500)
@@ -192,24 +194,37 @@ data <- readRDS("data/raw/gps_vult_sa.rds") |>
 #output_nearest <- rFunction(data, usr = usr, pwd = pwd, merging_rule = "nearest")
 ```
 
+The purpose of this App is to retrieve and combine available non-location
+Accelerometer (ACC) data with the provided input location data. The format of
+the returned output data is structured with data nesting, providing a versatile
+approach for handling the merged information in subsequent Apps. The trade-off
+for this flexibility is a slightly increased level of data manipulation needed
+to work with nested datasets.
+
+Here we suggest some sample code to inspect, manipulate and apply the output
+data effectively in downstream Apps within a MoveApps Workflow.
+
 Let's start by running the App's underpinning `rFunction` for a given input data
 using the `"latest"` merging criteria.
-```{r}
-output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = "latest") |> 
-  dplyr::select(where(~all(!is.na(.)))) # dropping redundant columns
 
+```{r}
+output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = "latest") 
 ```
 
-The merged Accelerometer (ACC) data is provided as `tibble` objects nested in list-column `acc_dt`.
+The output data is a `move2` location object, where the merged Accelerometer
+(ACC) data is provided as `tibble` objects nested in list-column `acc_dt`.
 
 ```{r}
+output <- output |> 
+  dplyr::select(where(~all(!is.na(.)))) # dropping redundant columns
+
 output
 ```
 
-#### Accessing ACC data
+#### Accessing nested ACC data
 
-Retrieving ACC events recorded between the second and third location points can
-achieved by, e.g:
+ACC events recorded e.g. between the second and third location points can
+retrieved by
 
 ```{r}
 output |> 
@@ -239,68 +254,135 @@ output |>
 
 #### Visualizing the difference between `"latest"` and `"nearest"` merging 
 
-*Stay tuned...*
 
-<!-- ```{r} -->
-<!-- #| echo: false -->
-<!-- #| include: false -->
+```{r}
+#| echo: false
+#| include: false
 
-<!-- # merging via the nearest rule -->
-<!-- output_nearest <- rFunction(data, usr = usr, pwd = pwd, merging_rule = "nearest") |>  -->
-<!--   dplyr::select(where(~all(!is.na(.)))) # dropping redundant columns -->
-<!-- ``` -->
-
+dt <- readRDS("data/raw/gps_vult_gaia.rds") |>
+  mt_filter_per_interval(unit = "3 secs") |> 
+  filter_track_data(individual_local_identifier == "V051") |>
+  slice(1:10)
 
 
-<!-- ```{r} -->
-<!-- #| code-fold: true -->
+# merging via the nearest rule
+output_nearest <- rFunction(dt, usr = usr, pwd = pwd, merging_rule = "nearest") |>
+  dplyr::select(where(~all(!is.na(.)))) |> # dropping redundant columns
+  dplyr::as_tibble() |> 
+  mutate(merging = "nearest")
 
-<!-- output_unpacked <- output |>  -->
-<!--   dplyr::as_tibble() |>  -->
-<!--   # restrict to 3 location events -->
-<!--   slice(1:3) |>  -->
-<!--   mutate(acc_dt = purrr::map(acc_dt, \(acc_events){ -->
-<!--     burst_idx <<- 0  -->
-<!--     if(!is.null(acc_events)){ -->
-<!--       acc_events |>  -->
-<!--         mutate( -->
-<!--           acc_burst = purrr::pmap( -->
-<!--             list(eobs_acceleration_sampling_frequency_per_axis, timestamp, acc_burst),  -->
-<!--             \(freq, start_time, acc){ -->
-<!--               burst_idx <<- burst_idx + 1 -->
-
-<!--               acc |>  -->
-<!--                 dplyr::as_tibble() |>  -->
-<!--                 # downsize to only first 15 measurements, for tractability -->
-<!--                 slice(floor(seq(1, nrow(acc), length.out = 15))) |>  -->
-<!--                 dplyr::mutate( -->
-<!--                   acc_timestamp = seq.POSIXt(from = start_time, by = 1/freq, length.out = 15),  -->
-<!--                   .before = 1 -->
-<!--                 ) |>  -->
-<!--                 dplyr::mutate(burst_idx) -->
-<!--             }) -->
-<!--         ) |>  -->
-<!--         tidyr::unnest(acc_burst) |>  -->
-<!--         dplyr::rename(acc_event_id = event_id) |>  -->
-<!--         dplyr::select(acc_event_id, acc_timestamp, burst_idx, matches("acc_[xyz]")) -->
-<!--     } else NULL -->
-<!--   })) |>  -->
-<!--   unnest(acc_dt) -->
+output_latest <- rFunction(dt, usr = usr, pwd = pwd, merging_rule = "latest") |>
+  dplyr::select(where(~all(!is.na(.)))) |> # dropping redundant columns
+  dplyr::as_tibble() |> 
+  mutate(merging = "latest")
 
 
-<!-- output$acc_dt[[1]] -->
+output_merg <- bind_rows(output_nearest, output_latest) |> 
+  mutate(event_id = stringr::str_sub(event_id,-5,-1)) |> 
+  group_by(merging)
+
+```
 
 
-<!-- output_unpacked |>  -->
-<!--   slice(1:30) |>  -->
-<!--   #filter(acc_event_id == 29979003282) |>  -->
-<!--   ggplot() + -->
-<!--   geom_point(aes(x = acc_timestamp, y = acc_x)) -->
+
+```{r}
+#| code-fold: true
+#| fig-width: 100
+
+output_merg_unpacked <- output_merg |>
+  dplyr::as_tibble() |>
+  # restrict to 3 location events
+  #slice(1:3) |>
+  mutate(acc_dt = purrr::map(acc_dt, \(acc_events){
+    burst_idx <<- 0
+    if(!is.null(acc_events)){
+      acc_events |>
+        mutate(
+          acc_burst = purrr::pmap(
+            list(eobs_acceleration_sampling_frequency_per_axis, timestamp, acc_burst),
+            \(freq, start_time, acc){
+              burst_idx <<- burst_idx + 1
+
+              acc |>
+                dplyr::as_tibble() |>
+                # downsize to only first 15 measurements, for tractability
+                slice(floor(seq(1, nrow(acc), length.out = 5))) |>
+                dplyr::mutate(
+                  acc_timestamp = seq.POSIXt(from = start_time, by = 1/freq, length.out = 5),
+                  .before = 1
+                ) |>
+                dplyr::mutate(burst_idx)
+            })
+        ) |>
+        tidyr::unnest(acc_burst) |>
+        dplyr::rename(acc_event_id = event_id) |>
+        dplyr::select(acc_event_id, acc_timestamp, burst_idx, matches("acc_[xyz]"))
+    } else NULL
+  })) |>
+  unnest(acc_dt)
 
 
-<!-- ``` -->
+location_times <- output_merg |> 
+  ungroup() |> 
+  distinct(event_id, geometry, timestamp)
 
 
+# p1 <- output_merg_unpacked |>
+#   dplyr::filter(merging == "nearest") |>
+#   tidyr::pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
+#   ggplot() +
+#   geom_point(aes(x = acc_timestamp, y = acc_value, col = factor(event_id))) +
+#   facet_wrap(~acc_axis, ncol = 1) +
+#   geom_vline(aes(xintercept = timestamp, col = factor(event_id)), data = location_times) +
+#   labs(title = "merging_rule: 'nearest'", y = "acceleration", x = "timestamp",
+#        col = "Location event ID") +
+#   scale_color_manual(values=met.brewer("Renoir")) +
+#   theme_bw()
+# 
+# p1
+# 
+# 
+# p2 <- output_merg_unpacked |>
+#   dplyr::filter(merging == "latest") |>
+#   tidyr::pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
+#   ggplot() +
+#   geom_point(aes(x = acc_timestamp, y = acc_value, col = factor(event_id))) +
+#   facet_wrap(~acc_axis, ncol = 1) +
+#   geom_vline(aes(xintercept = timestamp, col = factor(event_id)), data = location_times) +
+#   labs(title = "merging_rule: 'latest'", y = "acceleration", x = "timestamp",
+#        col = "Location event ID") +
+#   scale_color_manual(values=met.brewer("Renoir")) +
+#   theme_bw()
+# 
+# p2
+
+
+library(gganimate)
+  
+p <- output_merg_unpacked |>
+  tidyr::pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
+  ggplot() +
+  geom_point(aes(x = acc_timestamp, y = acc_value, col = factor(event_id))) +
+  facet_wrap(~acc_axis, ncol = 1) +
+  geom_vline(aes(xintercept = timestamp, col = factor(event_id)), data = location_times) +
+  labs(title = "merging_rule: 'latest'", y = "acceleration", x = "timestamp",
+       col = "Location event ID") +
+  scale_color_manual(values=met.brewer("Renoir")) +
+  theme_bw()
+
+
+p + 
+  transition_states(merging, transition_length = 3, state_length = 2) +
+  ggtitle('merging_rule: {closest_state}') +
+  enter_fade() + 
+  exit_shrink(size = 0.5) +
+  ease_aes('sine-in-out')
+
+```
+```{r}
+p + 
+  transition_states(merging)
+```
 
 
 
@@ -311,7 +393,7 @@ Summarizing acceleration values between consecutive location points may be
 required in downstream applications such as animal behavior classifiers.
 
 For instance, the variance of all acceleration values recorded
-between each location event (per active ACC axis) can be computed as
+between each location event (per active ACC axis) can be computed as follows.
 
 ```{r}
 output |> 
