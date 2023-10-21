@@ -185,10 +185,10 @@ input data using the `"latest"` merging criteria.
 output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = "latest") 
 ```
 
-    [INFO: 2023-10-21 11:17:10] Collecting details about input data
-    [INFO: 2023-10-21 11:17:10] Checking ACC data availability
-    [INFO: 2023-10-21 11:17:10] Downloading ACC data for each animal
-    [INFO: 2023-10-21 11:17:18] 
+    [INFO: 2023-10-21 11:23:02] Collecting details about input data
+    [INFO: 2023-10-21 11:23:02] Checking ACC data availability
+    [INFO: 2023-10-21 11:23:02] Downloading ACC data for each animal
+    [INFO: 2023-10-21 11:23:12] 
 
     ====== Summary of downloaded ACC data =======
 
@@ -203,14 +203,14 @@ output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = "latest")
           <int>
     1       174
 
-    [INFO: 2023-10-21 11:17:18] Processing downloaded Accelerometer data
-    [INFO: 2023-10-21 11:17:18] Merging ACC data to location data
-    [INFO: 2023-10-21 11:17:18] Preparing data for output
+    [INFO: 2023-10-21 11:23:12] Processing downloaded Accelerometer data
+    [INFO: 2023-10-21 11:23:12] Merging ACC data to location data
+    [INFO: 2023-10-21 11:23:12] Preparing data for output
 
     Joining with `by = join_by(individual_id, sensor_type_ids,
     individual_local_identifier, study_id, i_have_download_access)`
 
-    [INFO: 2023-10-21 11:17:18] Done! App has finished all its tasks
+    [INFO: 2023-10-21 11:23:12] Done! App has finished all its tasks
 
 The output data is a `move2` location object, where the merged
 Accelerometer (ACC) data is provided as `tibble` objects nested in
@@ -460,13 +460,6 @@ p +
 </details>
 
 ![](README_files/figure-commonmark/unnamed-chunk-7-1.gif)
-
-``` r
-p + 
-  transition_states(merging)
-```
-
-![](README_files/figure-commonmark/unnamed-chunk-8-1.gif)
 
 #### Summarising ACC measurements relative to location events
 

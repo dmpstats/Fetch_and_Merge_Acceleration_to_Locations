@@ -174,7 +174,7 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(MetBrewer)
-library(patchwork)
+library(gganimate)
 source("RFunction.R")
 
 options(pillar.width = 500)
@@ -325,39 +325,6 @@ location_times <- output_merg |>
   ungroup() |> 
   distinct(event_id, geometry, timestamp)
 
-
-# p1 <- output_merg_unpacked |>
-#   dplyr::filter(merging == "nearest") |>
-#   tidyr::pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
-#   ggplot() +
-#   geom_point(aes(x = acc_timestamp, y = acc_value, col = factor(event_id))) +
-#   facet_wrap(~acc_axis, ncol = 1) +
-#   geom_vline(aes(xintercept = timestamp, col = factor(event_id)), data = location_times) +
-#   labs(title = "merging_rule: 'nearest'", y = "acceleration", x = "timestamp",
-#        col = "Location event ID") +
-#   scale_color_manual(values=met.brewer("Renoir")) +
-#   theme_bw()
-# 
-# p1
-# 
-# 
-# p2 <- output_merg_unpacked |>
-#   dplyr::filter(merging == "latest") |>
-#   tidyr::pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
-#   ggplot() +
-#   geom_point(aes(x = acc_timestamp, y = acc_value, col = factor(event_id))) +
-#   facet_wrap(~acc_axis, ncol = 1) +
-#   geom_vline(aes(xintercept = timestamp, col = factor(event_id)), data = location_times) +
-#   labs(title = "merging_rule: 'latest'", y = "acceleration", x = "timestamp",
-#        col = "Location event ID") +
-#   scale_color_manual(values=met.brewer("Renoir")) +
-#   theme_bw()
-# 
-# p2
-
-
-library(gganimate)
-  
 p <- output_merg_unpacked |>
   tidyr::pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
   ggplot() +
@@ -379,10 +346,7 @@ p +
   ease_aes('sine-in-out')
 
 ```
-```{r}
-p + 
-  transition_states(merging)
-```
+
 
 
 
@@ -400,7 +364,7 @@ output |>
   dplyr::mutate(
     var = purrr::map(acc_dt, \(acc_events){
       if(!is.null(acc_events$acc_burst)){
-        # bind list of matrices by row
+        # bind list of matrices (one per ACC event) by row
         all_bursts <- do.call(rbind, acc_events$acc_burst)
         # variance in each active ACC axis
         apply(all_bursts, 2, var)  
