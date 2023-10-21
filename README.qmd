@@ -287,7 +287,6 @@ output_merg <- bind_rows(output_nearest, output_latest) |>
 
 ```{r}
 #| code-fold: true
-#| fig-width: 100
 
 output_merg_unpacked <- output_merg |>
   dplyr::as_tibble() |>
@@ -362,13 +361,14 @@ library(gganimate)
 p <- output_merg_unpacked |>
   tidyr::pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
   ggplot() +
-  geom_point(aes(x = acc_timestamp, y = acc_value, col = factor(event_id))) +
+  geom_point(aes(x = acc_timestamp, y = acc_value, col = factor(event_id),  group = merging)) +
   facet_wrap(~acc_axis, ncol = 1) +
   geom_vline(aes(xintercept = timestamp, col = factor(event_id)), data = location_times) +
   labs(title = "merging_rule: 'latest'", y = "acceleration", x = "timestamp",
        col = "Location event ID") +
   scale_color_manual(values=met.brewer("Renoir")) +
-  theme_bw()
+  theme_bw() +
+  theme(legend.position = "bottom")
 
 
 p + 

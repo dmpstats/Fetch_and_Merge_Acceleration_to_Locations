@@ -185,10 +185,10 @@ input data using the `"latest"` merging criteria.
 output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = "latest") 
 ```
 
-    [INFO: 2023-10-21 11:07:36] Collecting details about input data
-    [INFO: 2023-10-21 11:07:36] Checking ACC data availability
-    [INFO: 2023-10-21 11:07:36] Downloading ACC data for each animal
-    [INFO: 2023-10-21 11:07:46] 
+    [INFO: 2023-10-21 11:17:10] Collecting details about input data
+    [INFO: 2023-10-21 11:17:10] Checking ACC data availability
+    [INFO: 2023-10-21 11:17:10] Downloading ACC data for each animal
+    [INFO: 2023-10-21 11:17:18] 
 
     ====== Summary of downloaded ACC data =======
 
@@ -203,14 +203,14 @@ output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = "latest")
           <int>
     1       174
 
-    [INFO: 2023-10-21 11:07:46] Processing downloaded Accelerometer data
-    [INFO: 2023-10-21 11:07:46] Merging ACC data to location data
-    [INFO: 2023-10-21 11:07:46] Preparing data for output
+    [INFO: 2023-10-21 11:17:18] Processing downloaded Accelerometer data
+    [INFO: 2023-10-21 11:17:18] Merging ACC data to location data
+    [INFO: 2023-10-21 11:17:18] Preparing data for output
 
     Joining with `by = join_by(individual_id, sensor_type_ids,
     individual_local_identifier, study_id, i_have_download_access)`
 
-    [INFO: 2023-10-21 11:07:46] Done! App has finished all its tasks
+    [INFO: 2023-10-21 11:17:18] Done! App has finished all its tasks
 
 The output data is a `move2` location object, where the merged
 Accelerometer (ACC) data is provided as `tibble` objects nested in
@@ -439,13 +439,14 @@ library(gganimate)
 p <- output_merg_unpacked |>
   tidyr::pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
   ggplot() +
-  geom_point(aes(x = acc_timestamp, y = acc_value, col = factor(event_id))) +
+  geom_point(aes(x = acc_timestamp, y = acc_value, col = factor(event_id),  group = merging)) +
   facet_wrap(~acc_axis, ncol = 1) +
   geom_vline(aes(xintercept = timestamp, col = factor(event_id)), data = location_times) +
   labs(title = "merging_rule: 'latest'", y = "acceleration", x = "timestamp",
        col = "Location event ID") +
   scale_color_manual(values=met.brewer("Renoir")) +
-  theme_bw()
+  theme_bw() +
+  theme(legend.position = "bottom")
 
 
 p + 
