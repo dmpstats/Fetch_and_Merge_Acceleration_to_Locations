@@ -8,7 +8,7 @@
       "type": "STRING"
     },
     {
-      "id": "psw",
+      "id": "pwd",
       "name": "Movebank password",
       "description": "Type-in the password of your Movebank account",
       "defaultValue": "",
