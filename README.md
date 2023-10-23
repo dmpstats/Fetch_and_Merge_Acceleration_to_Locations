@@ -203,10 +203,10 @@ using the `'lates'` merging rule.
 output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = 'latest') 
 ```
 
-    [INFO: 2023-10-23 15:26:56] Collecting details about input data
-    [INFO: 2023-10-23 15:26:56] Checking ACC data availability
-    [INFO: 2023-10-23 15:26:56] Downloading ACC data for each animal
-    [INFO: 2023-10-23 15:27:02] 
+    [INFO: 2023-10-23 15:37:09] Collecting details about input data
+    [INFO: 2023-10-23 15:37:09] Checking ACC data availability
+    [INFO: 2023-10-23 15:37:09] Downloading ACC data for each animal
+    [INFO: 2023-10-23 15:37:14] 
 
     ====== Summary of downloaded ACC data =======
 
@@ -221,14 +221,14 @@ output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = 'latest')
           <int>
     1       174
 
-    [INFO: 2023-10-23 15:27:02] Processing downloaded Accelerometer data
-    [INFO: 2023-10-23 15:27:02] Merging ACC data to location data
-    [INFO: 2023-10-23 15:27:02] Preparing data for output
+    [INFO: 2023-10-23 15:37:14] Processing downloaded Accelerometer data
+    [INFO: 2023-10-23 15:37:15] Merging ACC data to location data
+    [INFO: 2023-10-23 15:37:15] Preparing data for output
 
     Joining with `by = join_by(individual_id, sensor_type_ids,
     individual_local_identifier, study_id, i_have_download_access)`
 
-    [INFO: 2023-10-23 15:27:02] Done! App has finished all its tasks
+    [INFO: 2023-10-23 15:37:15] Done! App has finished all its tasks
 
 The output data is a `move2` location object, where the merged
 Accelerometer (ACC) data is provided as `tibble` objects nested in
@@ -419,7 +419,8 @@ output_merg_unpacked <- output_merg |>
 
 location_times <- output_merg |> 
   ungroup() |> 
-  distinct(event_id, geometry, timestamp)
+  distinct(event_id, geometry, timestamp) |> 
+  mutate(timestamp = timestamp + 0.15) # tiny nudge to ease vizualization
 
 p <- output_merg_unpacked |>
   pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>

@@ -300,8 +300,8 @@ output_merg <- bind_rows(output_nearest, output_latest) |>
 ```{r}
 #| code-fold: true
 #| out-width: 100%
-#| fig-width: 12
-#| fig-height: 8
+#| fig-width: 10
+#| fig-height: 7
 #| label: fig-merging-rule
 #| fig-cap: Comparing the `'latest'` and `'nearest'` rules for merging ACC data with location data. Vertical lines mark the timestamps of six location events, while points represent acceleration values sampled in ACC events. Points are colored according to their assigned location given the selected merging rule.
 
@@ -336,7 +336,8 @@ output_merg_unpacked <- output_merg |>
 
 location_times <- output_merg |> 
   ungroup() |> 
-  distinct(event_id, geometry, timestamp)
+  distinct(event_id, geometry, timestamp) |> 
+  mutate(timestamp = timestamp + 0.15) # tiny nudge to ease vizualization
 
 p <- output_merg_unpacked |>
   pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
