@@ -16,7 +16,7 @@
     },
     {
       "id": "merging_rule",
-      "name": "Merging Criteria",
+      "name": "Merging Rule",
       "description": "Choose how downloaded Accelerometer data is merged to location data. ACC events are allocated to:",
       "type": "RADIOBUTTONS",
       "defaultValue": "latest",
