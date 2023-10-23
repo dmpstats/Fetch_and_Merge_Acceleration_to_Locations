@@ -53,10 +53,10 @@ as follows:
     animal/track based on recording timestamps and according to a choice
     between two merging criteria:
 
-    - `"latest"`: ACC events are allocated to the latest location event
+    - `'latest'`: ACC events are allocated to the latest location event
       preceding the starting time at which ACC bursts were recorded
 
-    - `"nearest"`: ACC events are allocated to the closest-in-time
+    - `'nearest'`: ACC events are allocated to the closest-in-time
       location event, which can occur either before or after the ACC
       sampling starting time.
 
@@ -79,7 +79,7 @@ as follows:
 
     - *object attributes*:
 
-      - `acc_merging_rule` specifying the selected merging criteria[^1]
+      - `acc_merging_rule` specifying the selected merging rule[^1]
       - `acc_track_data` providing the track data component of the
         merged ACC data
 
@@ -106,13 +106,16 @@ as follows:
 
 ### Output data
 
-`move2` location object (see details in point 6. above)
+`move2` location object - see point 6. of
+[Documentation](#sec-documentation) for additional context. Section
+[Using the Output data](#sec-demo) demonstrates how to access and
+manipulate the merged data in the output object.
 
 ### Artefacts
 
 `downloaded_acc_data.rds`: a `tibble` object with downloaded and
-processed ACC data, with ACC events and track data nested by animal in
-list-columns `acc_dt` and `acc_trk_dt`
+processed ACC data, with ACC events and track data nested by animal in,
+respectively, list-columns `acc_dt` and `acc_trk_dt`.
 
 ### Parameters
 
@@ -122,13 +125,12 @@ Default: `NULL`.
 **Movebank password** (`pwd`): character string, the Movebank password.
 Default: `NULL`.
 
-**Merging Criteria** (`merging_rule`): specify how downloaded
-Accelerometer data is merged to location data. ACC events can allocated
-to either:
+**Merging Rule** (`merging_rule`): specify how downloaded Accelerometer
+data is merged to location data. ACC events can allocated to either:
 
 - the latest recorded location available preceding sampling time
-  (`"latest"`, the default), or
-- the closest-in-time recorded location (`"nearest"`)
+  (`'latest'`, the default), or
+- the closest-in-time recorded location (`'nearest'`)
 
 **Store ACC track information** (`store_acc_track_info`): check-box to
 choose whether to store track data from merged ACC data as an attribute
@@ -142,8 +144,6 @@ data. Must be between 0 (no filtering) and 30. Unit: `minutes`; default:
 ### Most common errors
 
 None yet
-
-<!-- *Please describe shortly what most common errors of the App can be, how they occur and best ways of solving them.* -->
 
 ### Null or error handling
 
@@ -171,24 +171,42 @@ The purpose of this App is to retrieve and combine available
 non-location Accelerometer (ACC) data with the provided input location
 data. The format of the returned output data is structured with data
 nesting, providing a versatile approach for handling the merged
-information in subsequent Apps. The trade-off for this flexibility is a
-slightly increased level of data manipulation needed to work with nested
-datasets.
+information in subsequent applications. The trade-off for this
+flexibility is the slightly increased level of data manipulation needed
+to work with nested datasets.
 
 Here we suggest some sample code to inspect, manipulate and apply the
-output data effectively in downstream Apps within a MoveApps Workflow.
-
-Let’s start by running the App’s underpinning `rFunction` for a given
-input data using the `"latest"` merging criteria.
+output data effectively in e.g. downstream Apps within a MoveApps
+Workflow. Let’s start by loading the dependencies required to run this
+demonstration.
 
 ``` r
-output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = "latest") 
+# load dependencies
+library(move2)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(stringr)
+library(gganimate)
+
+source("RFunction.R")
+source(file.path("src/common/logger.R"))
+source(file.path("src/io/app_files.R"))
+source(file.path("src/io/io_handler.R"))
 ```
 
-    [INFO: 2023-10-21 11:23:02] Collecting details about input data
-    [INFO: 2023-10-21 11:23:02] Checking ACC data availability
-    [INFO: 2023-10-21 11:23:02] Downloading ACC data for each animal
-    [INFO: 2023-10-21 11:23:12] 
+Now we run the App’s underpinning `rFunction` for a given input `data`
+using the `'lates'` merging rule.
+
+``` r
+output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = 'latest') 
+```
+
+    [INFO: 2023-10-23 15:26:56] Collecting details about input data
+    [INFO: 2023-10-23 15:26:56] Checking ACC data availability
+    [INFO: 2023-10-23 15:26:56] Downloading ACC data for each animal
+    [INFO: 2023-10-23 15:27:02] 
 
     ====== Summary of downloaded ACC data =======
 
@@ -203,14 +221,14 @@ output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = "latest")
           <int>
     1       174
 
-    [INFO: 2023-10-21 11:23:12] Processing downloaded Accelerometer data
-    [INFO: 2023-10-21 11:23:12] Merging ACC data to location data
-    [INFO: 2023-10-21 11:23:12] Preparing data for output
+    [INFO: 2023-10-23 15:27:02] Processing downloaded Accelerometer data
+    [INFO: 2023-10-23 15:27:02] Merging ACC data to location data
+    [INFO: 2023-10-23 15:27:02] Preparing data for output
 
     Joining with `by = join_by(individual_id, sensor_type_ids,
     individual_local_identifier, study_id, i_have_download_access)`
 
-    [INFO: 2023-10-21 11:23:12] Done! App has finished all its tasks
+    [INFO: 2023-10-23 15:27:02] Done! App has finished all its tasks
 
 The output data is a `move2` location object, where the merged
 Accelerometer (ACC) data is provided as `tibble` objects nested in
@@ -301,9 +319,9 @@ can retrieved by
 ``` r
 output |> 
   as_tibble() |> 
-  dplyr::slice(2) |> 
+  slice(2) |> 
   dplyr::select(acc_dt) |> 
-  tidyr::unnest(acc_dt)
+  unnest(acc_dt)
 ```
 
     # A tibble: 3 × 14
@@ -336,13 +354,13 @@ location points is accessible via
 ``` r
 output |> 
   as_tibble() |> 
-  dplyr::slice(2) |> 
+  slice(2) |> 
   dplyr::select(acc_dt) |> 
   unnest(acc_dt) |> 
   slice(1) |> 
   mutate(acc_burst = map(acc_burst, as_tibble)) |> # required for nicer unnesting compared to the original matrix format
   dplyr::select(acc_burst)|> 
-  tidyr::unnest(acc_burst)
+  unnest(acc_burst)
 ```
 
     # A tibble: 264 × 3
@@ -360,40 +378,40 @@ output |>
     10  1982  1761  1627
     # ℹ 254 more rows
 
-#### Visualizing the difference between `"latest"` and `"nearest"` merging
+#### `'latest'` versus `'nearest'` merging
+
+[Figure 1](#fig-merging-rule) provide a graphical representation of the
+difference between the two available options for merging the ACC data to
+location data (via parameter `merging_rule`).
 
 <details>
 <summary>Code</summary>
 
 ``` r
 output_merg_unpacked <- output_merg |>
-  dplyr::as_tibble() |>
-  # restrict to 3 location events
-  #slice(1:3) |>
-  mutate(acc_dt = purrr::map(acc_dt, \(acc_events){
-    burst_idx <<- 0
+  as_tibble() |>
+  mutate(acc_dt = map(acc_dt, \(acc_events){
     if(!is.null(acc_events)){
       acc_events |>
         mutate(
-          acc_burst = purrr::pmap(
+          acc_burst = pmap(
             list(eobs_acceleration_sampling_frequency_per_axis, timestamp, acc_burst),
             \(freq, start_time, acc){
-              burst_idx <<- burst_idx + 1
-
+              # downsize to only first 5 measurements on each acc event, for plotting clarity
+              n <- 5
               acc |>
-                dplyr::as_tibble() |>
-                # downsize to only first 15 measurements, for tractability
-                slice(floor(seq(1, nrow(acc), length.out = 5))) |>
-                dplyr::mutate(
-                  acc_timestamp = seq.POSIXt(from = start_time, by = 1/freq, length.out = 5),
+                as_tibble() |>
+                slice(floor(seq(1, nrow(acc), length.out = n))) |>
+                mutate(
+                  acc_timestamp = start_time,
+                  #acc_timestamp = seq.POSIXt(from = start_time, by = 1/freq, length.out = n),
                   .before = 1
-                ) |>
-                dplyr::mutate(burst_idx)
+                )
             })
         ) |>
-        tidyr::unnest(acc_burst) |>
-        dplyr::rename(acc_event_id = event_id) |>
-        dplyr::select(acc_event_id, acc_timestamp, burst_idx, matches("acc_[xyz]"))
+        unnest(acc_burst) |>
+        rename(acc_event_id = event_id) |>
+        dplyr::select(acc_event_id, acc_timestamp, matches("acc_[xyz]"))
     } else NULL
   })) |>
   unnest(acc_dt)
@@ -403,63 +421,40 @@ location_times <- output_merg |>
   ungroup() |> 
   distinct(event_id, geometry, timestamp)
 
-
-# p1 <- output_merg_unpacked |>
-#   dplyr::filter(merging == "nearest") |>
-#   tidyr::pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
-#   ggplot() +
-#   geom_point(aes(x = acc_timestamp, y = acc_value, col = factor(event_id))) +
-#   facet_wrap(~acc_axis, ncol = 1) +
-#   geom_vline(aes(xintercept = timestamp, col = factor(event_id)), data = location_times) +
-#   labs(title = "merging_rule: 'nearest'", y = "acceleration", x = "timestamp",
-#        col = "Location event ID") +
-#   scale_color_manual(values=met.brewer("Renoir")) +
-#   theme_bw()
-# 
-# p1
-# 
-# 
-# p2 <- output_merg_unpacked |>
-#   dplyr::filter(merging == "latest") |>
-#   tidyr::pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
-#   ggplot() +
-#   geom_point(aes(x = acc_timestamp, y = acc_value, col = factor(event_id))) +
-#   facet_wrap(~acc_axis, ncol = 1) +
-#   geom_vline(aes(xintercept = timestamp, col = factor(event_id)), data = location_times) +
-#   labs(title = "merging_rule: 'latest'", y = "acceleration", x = "timestamp",
-#        col = "Location event ID") +
-#   scale_color_manual(values=met.brewer("Renoir")) +
-#   theme_bw()
-# 
-# p2
-
-
-library(gganimate)
-  
 p <- output_merg_unpacked |>
-  tidyr::pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
+  pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
   ggplot() +
-  geom_point(aes(x = acc_timestamp, y = acc_value, col = factor(event_id),  group = merging)) +
-  facet_wrap(~acc_axis, ncol = 1) +
-  geom_vline(aes(xintercept = timestamp, col = factor(event_id)), data = location_times) +
+  geom_point(aes(x = acc_timestamp, y = acc_value, col = factor(event_id), group = merging), size = 2) +
+  facet_wrap(~acc_axis, ncol = 1, scales = "free_y") +
+  geom_vline(aes(xintercept = timestamp, col = factor(event_id)), data = location_times, linewidth = 1) +
   labs(title = "merging_rule: 'latest'", y = "acceleration", x = "timestamp",
        col = "Location event ID") +
-  scale_color_manual(values=met.brewer("Renoir")) +
-  theme_bw() +
+  scale_color_brewer(type = "qual", palette = "Paired") +
+  theme_light() +
   theme(legend.position = "bottom")
 
 
 p + 
-  transition_states(merging, transition_length = 3, state_length = 2) +
-  ggtitle('merging_rule: {closest_state}') +
+  transition_states(merging, transition_length = 1, state_length = 3) +
+  ggtitle("Merging Rule: '{closest_state}'") +
   enter_fade() + 
-  exit_shrink(size = 0.5) +
+  exit_shrink() +
   ease_aes('sine-in-out')
 ```
 
 </details>
 
-![](README_files/figure-commonmark/unnamed-chunk-7-1.gif)
+<figure>
+<img src="README_files/figure-commonmark/fig-merging-rule-1.gif"
+id="fig-merging-rule" style="width:100.0%"
+alt="Figure 1: Comparing the &#39;latest&#39; and &#39;nearest&#39; rules for merging ACC data with location data. Vertical lines mark the timestamps of six location events, while points represent acceleration values sampled in ACC events. Points are colored according to their assigned location given the selected merging rule." />
+<figcaption aria-hidden="true">Figure 1: Comparing the
+<code>'latest'</code> and <code>'nearest'</code> rules for merging ACC
+data with location data. Vertical lines mark the timestamps of six
+location events, while points represent acceleration values sampled in
+ACC events. Points are colored according to their assigned location
+given the selected merging rule.</figcaption>
+</figure>
 
 #### Summarising ACC measurements relative to location events
 
@@ -471,11 +466,11 @@ For instance, the variance of all acceleration values recorded between
 each location event (per active ACC axis) can be computed as follows.
 
 ``` r
-output |> 
-  dplyr::mutate(
-    var = purrr::map(acc_dt, \(acc_events){
+loc_acc_var <- output |> 
+  mutate(
+    var = map(acc_dt, \(acc_events){
       if(!is.null(acc_events$acc_burst)){
-        # bind list of matrices by row
+        # bind list of matrices (one per ACC event) by row
         all_bursts <- do.call(rbind, acc_events$acc_burst)
         # variance in each active ACC axis
         apply(all_bursts, 2, var)  
@@ -484,7 +479,9 @@ output |>
       }
     })
   ) |> 
-  tidyr::unnest_wider(var, names_sep = "_")
+  unnest_wider(var, names_sep = "_")
+
+loc_acc_var
 ```
 
     # A tibble: 10 × 13
@@ -536,5 +533,23 @@ output |>
      8    12359.
      9     2859.
     10       NA 
+
+Note that `loc_acc_var` is not a `move2` object anymore. This is a
+by-product of the un-nesting process, which drops the `move2` and `sf`
+classes and their attributes. However, back-conversion is
+straightforward using `{move2}` functionality and the original `output`
+object, as e.g.
+
+``` r
+loc_acc_var <- loc_acc_var |> 
+  mt_as_move2(
+    time_column = mt_time_column(output), 
+    track_id_column = mt_track_id_column(output)
+)
+
+mt_is_move2(loc_acc_var)
+```
+
+    [1] TRUE
 
 [^1]: retrievable via `attr(output, "acc_merging_rule")`
