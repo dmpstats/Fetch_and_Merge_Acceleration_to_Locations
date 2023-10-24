@@ -17,8 +17,8 @@ measurements to each observed location based on recorded time.
 Given the individuals and time-span of recorded events in the input
 location data, this App is tasked with downloading and merging available
 (non-location) acceleration data to recorded locations. Merging is
-entirely time-based, and the underlying data processing can be outlined
-as follows:
+time-based whithin animals/tracks, and the underlying data processing
+can be outlined as follows:
 
 1.  Extract animal/track IDs and start-end timestamps of location events
     for individuals present in input data;
@@ -35,9 +35,9 @@ as follows:
 
     - Downloaded data is reshaped to return bursts of ACC values nested
       in a list-column named `acc_bursts`. Therefore, each row of
-      standardized ACC represents an event at which a burst of ACC
+      processed ACC data represents an event at which a burst of ACC
       values (per active axis) was recorded, with the timestamp column
-      specifying the starting time of the burst.
+      specifying the starting time of the ACC event.
 
     - The type (raw or non-raw) and tag origin (eobs or non-eobs) of ACC
       samples are also added as data attributes.
@@ -50,15 +50,17 @@ as follows:
       (e.g. 1 burst every couple of seconds).
 
 5.  Merge processed ACC events to location events of the same
-    animal/track based on recording timestamps and according to a choice
-    between two merging criteria:
+    animal/track using recording timestamps for alignment. Location
+    event times act as reference points, while ACC event starting times
+    are applied as allocable variables. The merging process governed by
+    two alternative integration rules:
 
-    - `'latest'`: ACC events are allocated to the latest location event
-      preceding the starting time at which ACC bursts were recorded
+    - `'latest'`: ACC events are allocated to the most recent location
+      event occurring prior to the ACC sampling start time.
 
-    - `'nearest'`: ACC events are allocated to the closest-in-time
+    - `'nearest'`: ACC events are assigned to the closest-in-time
       location event, which can occur either before or after the ACC
-      sampling starting time.
+      sampling start time.
 
     ACC events are joined to corresponding location events in a
     list-column named `acc_dt`. Data nesting is required here as,
@@ -128,13 +130,17 @@ Default: `NULL`.
 **Merging Rule** (`merging_rule`): specify how downloaded Accelerometer
 data is merged to location data. ACC events can allocated to either:
 
-- the latest recorded location available preceding sampling time
-  (`'latest'`, the default), or
+- the most recent location event recorded prior to the ACC sampling
+  start time (`'latest'`, the default), or
+
 - the closest-in-time recorded location (`'nearest'`)
 
 **Store ACC track information** (`store_acc_track_info`): check-box to
-choose whether to store track data from merged ACC data as an attribute
-of the output `move2` object. Default: `FALSE`.
+choose whether to store the track attribute table from merged ACC data
+as an attribute of the output `move2` object. To reduce data redundancy,
+ACC track data is dropped from the ACC data prior to the nesting step in
+the merging process. This option allows to store the ACC’s track
+attribute table for potential future use or reference. Default: `FALSE`.
 
 **Filter downloaded ACC data by time interval** (`acc_timefilter`): an
 integer defining the time interval, in minutes, for thinning the ACC
@@ -203,10 +209,10 @@ using the `'lates'` merging rule.
 output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = 'latest') 
 ```
 
-    [INFO: 2023-10-23 15:37:09] Collecting details about input data
-    [INFO: 2023-10-23 15:37:09] Checking ACC data availability
-    [INFO: 2023-10-23 15:37:09] Downloading ACC data for each animal
-    [INFO: 2023-10-23 15:37:14] 
+    [INFO: 2023-10-24 10:10:50] Collecting details about input data
+    [INFO: 2023-10-24 10:10:50] Checking ACC data availability
+    [INFO: 2023-10-24 10:10:50] Downloading ACC data for each animal
+    [INFO: 2023-10-24 10:10:55] 
 
     ====== Summary of downloaded ACC data =======
 
@@ -221,14 +227,14 @@ output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = 'latest')
           <int>
     1       174
 
-    [INFO: 2023-10-23 15:37:14] Processing downloaded Accelerometer data
-    [INFO: 2023-10-23 15:37:15] Merging ACC data to location data
-    [INFO: 2023-10-23 15:37:15] Preparing data for output
+    [INFO: 2023-10-24 10:10:55] Processing downloaded Accelerometer data
+    [INFO: 2023-10-24 10:10:55] Merging ACC data to location data
+    [INFO: 2023-10-24 10:10:56] Preparing data for output
 
     Joining with `by = join_by(individual_id, sensor_type_ids,
     individual_local_identifier, study_id, i_have_download_access)`
 
-    [INFO: 2023-10-23 15:37:15] Done! App has finished all its tasks
+    [INFO: 2023-10-24 10:10:56] Done! App has finished all its tasks
 
 The output data is a `move2` location object, where the merged
 Accelerometer (ACC) data is provided as `tibble` objects nested in
@@ -420,7 +426,7 @@ output_merg_unpacked <- output_merg |>
 location_times <- output_merg |> 
   ungroup() |> 
   distinct(event_id, geometry, timestamp) |> 
-  mutate(timestamp = timestamp + 0.15) # tiny nudge to ease vizualization
+  mutate(timestamp = timestamp + 0.15) # tiny nudge to ease visualization (checked that merging is correct)
 
 p <- output_merg_unpacked |>
   pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
