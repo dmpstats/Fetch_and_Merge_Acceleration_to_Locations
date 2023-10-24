@@ -13,7 +13,7 @@ Github repository: <https://github.com/dmpstats/Fetch_and_Bind_Acceleration_to_L
 
 Downloads available accelerometer data for individuals and time window comprised
 in the input location data and merges acceleration measurements to each observed
-location based on recorded time.
+location event based on recording time.
 
 ## Documentation {#sec-documentation}
 
@@ -223,7 +223,7 @@ data <- readRDS("data/raw/gps_vult_sa.rds") |>
 ```
 
 Now we run the App's underpinning `rFunction` for a given input `data`
-using the `'lates'` merging rule.
+using the `'latest'` merging rule.
 
 ```{r}
 output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = 'latest') 
