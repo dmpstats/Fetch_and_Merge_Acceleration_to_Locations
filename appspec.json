@@ -22,7 +22,7 @@
       "defaultValue": "latest",
       "options": [{
         "value": "latest",
-        "displayText": "the latest recorded location available preceding sampling time"
+        "displayText": "the most recent location event recorded prior to the ACC sampling start time"
         },
         {
           "value": "nearest",
@@ -32,7 +32,7 @@
     {
       "id": "store_acc_track_info",
       "name": "Store ACC track information",
-      "description": "Store track data from merged ACC data as an attribute of the output `move2` object",
+      "description": "Store the track atttribute table from merged ACC data as an attribute of the output `move2` object",
       "type": "CHECKBOX",
       "defaultValue": false
     },

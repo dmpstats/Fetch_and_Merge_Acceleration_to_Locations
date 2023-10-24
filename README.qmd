@@ -128,14 +128,22 @@ list-columns `acc_dt` and `acc_trk_dt`.
 
 **Merging Rule** (`merging_rule`): specify how downloaded Accelerometer
 data is merged to location data. ACC events can allocated to either:
-
-  - the latest recorded location available preceding sampling time (`'latest'`, 
-  the default), or
+  
+  - the most recent location event recorded prior to the ACC sampling start time 
+  (`'latest'`, the default), or
+  
   - the closest-in-time recorded location (`'nearest'`)
 
 **Store ACC track information** (`store_acc_track_info`): check-box to choose
-whether to store track data from merged ACC data as an attribute of the output
-`move2` object. Default: `FALSE`.
+whether to store the track attribute table from merged ACC data as an attribute
+of the output `move2` object. To reduce data redundancy, ACC track data is
+dropped from the ACC data prior to the nesting step in the merging process. This
+option allows to store the ACC's track attribute table for potential future use
+or reference.
+
+    
+
+Default: `FALSE`.
 
 **Filter downloaded ACC data by time interval** (`acc_timefilter`): an integer
 defining the time interval, in minutes, for thinning the ACC data. Must be
