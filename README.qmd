@@ -19,8 +19,8 @@ location based on recorded time.
 
 Given the individuals and time-span of recorded events in the input location
 data, this App is tasked with downloading and merging available (non-location)
-acceleration data to recorded locations. Merging is entirely time-based, and the
-underlying data processing can be outlined as follows:
+acceleration data to recorded locations. Merging is time-based whithin
+animals/tracks, and the underlying data processing can be outlined as follows:
 
 1. Extract animal/track IDs and start-end timestamps of location events for
 individuals present in input data;
@@ -35,9 +35,10 @@ Movebank in plain format (one ACC measurement on each active axis per row) or
 nested format (burst of consecutive AAC values stored per row). In this step:
 
     - Downloaded data is reshaped to return bursts of ACC values nested in a
-    list-column named `acc_bursts`. Therefore, each row of standardized ACC
+    list-column named `acc_bursts`. Therefore, each row of processed ACC data
     represents an event at which a burst of ACC values (per active axis) was
-    recorded, with the timestamp column specifying the starting time of the burst.
+    recorded, with the timestamp column specifying the starting time of the ACC
+    event.
   
     - The type (raw or non-raw) and tag origin (eobs or non-eobs) of ACC samples 
     are also added as data attributes. 
@@ -49,14 +50,17 @@ nested format (burst of consecutive AAC values stored per row). In this step:
     high-frequency ACC data (e.g. 1 burst every couple of seconds).
 
 
-5. Merge processed ACC events to location events of the same animal/track based
-on recording timestamps and according to a choice between two merging criteria:
+5. Merge processed ACC events to location events of the same animal/track using
+recording timestamps for alignment. Location event times act as reference
+points, while ACC event starting times are applied as allocable variables. The
+merging process governed by two alternative integration rules:
 
-    - `'latest'`: ACC events are allocated to the latest location event preceding 
-    the starting time at which ACC bursts were recorded
+
+    - `'latest'`: ACC events are allocated to the most recent location event 
+    occurring prior to the ACC sampling start time.
   
-    - `'nearest'`: ACC events are allocated to the closest-in-time location event, 
-    which can occur either before or after the ACC sampling starting time.
+    - `'nearest'`: ACC events are assigned to the closest-in-time location event, 
+    which can occur either before or after the ACC sampling start time.
     
     ACC events are joined to corresponding location events in a list-column
     named `acc_dt`. Data nesting is required here as, depending on the frequency
@@ -337,7 +341,7 @@ output_merg_unpacked <- output_merg |>
 location_times <- output_merg |> 
   ungroup() |> 
   distinct(event_id, geometry, timestamp) |> 
-  mutate(timestamp = timestamp + 0.15) # tiny nudge to ease vizualization
+  mutate(timestamp = timestamp + 0.15) # tiny nudge to ease visualization (checked that merging is correct)
 
 p <- output_merg_unpacked |>
   pivot_longer(cols = c(acc_x, acc_y, acc_z), names_to = "acc_axis", values_to = "acc_value") |>
