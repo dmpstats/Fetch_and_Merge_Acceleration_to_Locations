@@ -15,7 +15,7 @@ Downloads available accelerometer data for individuals and time window comprised
 in the input location data and merges acceleration measurements to each observed
 location event based on recording time.
 
-## Documentation {#sec-documentation}
+## Documentation
 
 Given the individuals and time-span of recorded events in the input location
 data, this App is tasked with downloading and merging available (non-location)
@@ -106,9 +106,9 @@ possible that this App may become obsolete in the future.
 
 ### Output data
 
-`move2` location object - see point 6. of [Documentation](#sec-documentation)
-for additional context. Section [Using the Output data](#sec-demo) demonstrates
-how to access and manipulate the merged data in the output object.
+`move2` location object - see point 6. of [Documentation](#documentation) for
+additional context. Section [Using the Output data](#using-the-output-data)
+demonstrates how to access and manipulate the merged data in the output object.
 
 
 ### Artefacts
@@ -174,7 +174,7 @@ throw an error if the specified interval is not between 0 and 30.
 
 
 
-### Using the output data {#sec-demo}
+### Using the output data
 
 The purpose of this App is to retrieve and combine available non-location
 Accelerometer (ACC) data with the provided input location data. The format of
