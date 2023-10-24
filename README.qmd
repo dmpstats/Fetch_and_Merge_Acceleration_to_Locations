@@ -139,11 +139,7 @@ whether to store the track attribute table from merged ACC data as an attribute
 of the output `move2` object. To reduce data redundancy, ACC track data is
 dropped from the ACC data prior to the nesting step in the merging process. This
 option allows to store the ACC's track attribute table for potential future use
-or reference.
-
-    
-
-Default: `FALSE`.
+or reference. Default: `FALSE`.
 
 **Filter downloaded ACC data by time interval** (`acc_timefilter`): an integer
 defining the time interval, in minutes, for thinning the ACC data. Must be
