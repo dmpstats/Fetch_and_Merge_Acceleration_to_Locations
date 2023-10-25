@@ -8,6 +8,7 @@ library("stringr")
 library("assertthat")
 library("sf")
 library("rlang")
+library("keyring")
 
 ## The parameter `data` is reserved for the data object passed on from the
 ## previous app - it MUST be of IO type move2_loc

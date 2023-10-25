@@ -77,6 +77,9 @@
       },
       {
         "name": "utils"
+      },
+      {
+        "name": "keyring"
       }
     ]
   },
