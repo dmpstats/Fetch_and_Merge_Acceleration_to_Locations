@@ -1,3 +1,8 @@
+# NOTE: `acc_testsets` used here were created earlier via
+# "dev/generating_example_acc_datasets.r". If this script is being used for the
+# first time since cloning the code repository from GitHub, these datasets need
+# to be re-generated once.
+
 library(move2)
 library(purrr)
 library(dplyr)
@@ -21,6 +26,7 @@ test_that("rFunction output is a `move2_loc` object", {
   
   withr::local_envvar("APP_ARTIFACTS_DIR"="../../data/output/")
 
+  # CC_0 license type  data
   input_dt <- readRDS(test_path("data", "move2_loc_1.rds")) |> 
     filter_track_data(individual_local_identifier == "Bateleur_8887") |> 
     slice(1:10)
@@ -80,9 +86,9 @@ test_that("rFunction skips merging if user has no download permissions", {
 
 test_that("rFunction skips merging if ACC data is not collected for any of the animals in input", {
   
-  input_dt <- readRDS(test_path("data", "move2_loc_2.rds"))
+  input_dt <- readRDS(test_path("data", "move2_loc_1.rds"))
   input_trk_dt <- mt_track_data(input_dt)
-  input_trk_dt$sensor.type.ids <- "GPS"
+  input_trk_dt$sensor_type_ids <- "GPS"
   input_dt <- input_dt |> mt_set_track_data(input_trk_dt)
   
   # check that correct warning is issued
@@ -109,8 +115,8 @@ test_that("rFunction's option `store_acc_track_info` works", {
   
   withr::local_envvar("APP_ARTIFACTS_DIR"="../../data/output/")
   
-  input_dt <- readRDS(test_path("data", "move2_loc_2.rds")) |> 
-    filter_track_data(track == "TO_6485") |> 
+  input_dt <- readRDS(test_path("data", "move2_loc_1.rds")) |> 
+    filter_track_data(individual_local_identifier == "Bateleur_8887") |> 
     slice(1:5)
   
   output <- rFunction(input_dt, usr = usr, pwd = pwd, merging_rule = "latest", 

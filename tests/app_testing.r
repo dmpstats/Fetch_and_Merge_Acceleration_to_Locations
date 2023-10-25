@@ -1,11 +1,15 @@
+# NOTE: Some of the datasets used here were created earlier via
+# "dev/generating_example_gps_datasets.r". If script is being used for the first
+# time since cloning the code repository from GitHub, these datasets need to be
+# re-generated once.
+
 # ------------------- #
 #       Preamble 
 # ------------------- #
 library(fs)
 library(jsonlite)
 
-
-# read input datasets for testing
+# Read input datasets for testing
 data_path <- "data/raw/"
 test_inputs <- fs::dir_map(data_path, readRDS)
 names(test_inputs) <- basename(path_ext_remove(dir_ls(data_path)))
@@ -13,6 +17,7 @@ names(test_inputs) <- basename(path_ext_remove(dir_ls(data_path)))
 large_gps_nam <- readRDS("dev/vult_nam_large.rds")
 
 # movebank credentials stored in HOME .Renviron file, set up via `usethis::edit_r_environ()`
+# CAUTION: DO NOT USE YOUR ACTUAL LOGIN DETAILS HERE, OTHERWISE YOU MAY EXPOSE YOUR CREDENTIALS INADVERTENTLY
 usr <- Sys.getenv("vult_usr")
 pwd <- Sys.getenv("vult_pwd")
 
@@ -58,7 +63,7 @@ run_sdk <- function(data, usr, pwd,
   
   # overwrite config file with current inputs
   write(
-    jsonlite::toJSON(new_app_config,  pretty = TRUE, auto_unbox = TRUE), 
+    jsonlite::toJSON(new_app_config, pretty = TRUE, auto_unbox = TRUE), 
     file = app_config_file
   )
   

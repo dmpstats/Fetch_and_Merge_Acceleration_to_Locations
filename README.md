@@ -209,10 +209,10 @@ using the `'latest'` merging rule.
 output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = 'latest') 
 ```
 
-    [INFO: 2023-10-24 13:46:21] Collecting details about input data
-    [INFO: 2023-10-24 13:46:21] Checking ACC data availability
-    [INFO: 2023-10-24 13:46:21] Downloading ACC data for each animal
-    [INFO: 2023-10-24 13:46:27] 
+    [INFO: 2023-10-25 10:42:19] Collecting details about input data
+    [INFO: 2023-10-25 10:42:19] Checking ACC data availability
+    [INFO: 2023-10-25 10:42:19] Downloading ACC data for each animal
+    [INFO: 2023-10-25 10:42:26] 
 
     ====== Summary of downloaded ACC data =======
 
@@ -227,14 +227,14 @@ output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = 'latest')
           <int>
     1       174
 
-    [INFO: 2023-10-24 13:46:27] Processing downloaded Accelerometer data
-    [INFO: 2023-10-24 13:46:27] Merging ACC data to location data
-    [INFO: 2023-10-24 13:46:27] Preparing data for output
+    [INFO: 2023-10-25 10:42:26] Processing downloaded Accelerometer data
+    [INFO: 2023-10-25 10:42:27] Merging ACC data to location data
+    [INFO: 2023-10-25 10:42:27] Preparing data for output
 
     Joining with `by = join_by(individual_id, sensor_type_ids,
     individual_local_identifier, study_id, i_have_download_access)`
 
-    [INFO: 2023-10-24 13:46:27] Done! App has finished all its tasks
+    [INFO: 2023-10-25 10:42:27] Done! App has finished all its tasks
 
 The output data is a `move2` location object, where the merged
 Accelerometer (ACC) data is provided as `tibble` objects nested in

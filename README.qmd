@@ -213,11 +213,12 @@ source(file.path("src/io/io_handler.R"))
 
 options(pillar.width = 500)
 
-# movebank credentials stored in HOME .Renviron file
+# movebank credentials stored in HOME .Renviron file, set up via `usethis::edit_r_environ()`
+# CAUTION: DO NOT USE YOUR ACTUAL LOGIN DETAILS HERE, OTHERWISE YOU MAY EXPOSE YOUR CREDENTIALS INADVERTENTLY
 usr <- Sys.getenv("vult_usr")
 pwd <- Sys.getenv("vult_pwd")
 
-data <- readRDS("data/raw/gps_vult_sa.rds") |>
+data <- readRDS("data/raw/gps_vult_sa.rds") |> # Data created via "dev/generating_example_gps_datasets.r"
   filter_track_data(individual_local_identifier == "Bateleur_8887") |>
   slice(1:10)
 ```
