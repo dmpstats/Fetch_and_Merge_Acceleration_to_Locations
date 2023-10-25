@@ -44,10 +44,11 @@ can be outlined as follows:
 
     - ACC data can optionally be thinned down to only retain a single
       ACC burst event within a given time interval via the parameter
-      `acc_timefilter` (details in the Settings section below). This
-      feature can be useful to avoid long computations, and potentially
-      lack of memory issues, when processing high-frequency ACC data
-      (e.g. 1 burst every couple of seconds).
+      `acc_timefilter` (or details in the [Parameters](#parameters)
+      section below). This feature can be useful to avoid long
+      computations, and potentially lack of memory issues, when
+      processing high-frequency ACC data (e.g. 1 burst every couple of
+      seconds). test
 
 5.  Merge processed ACC events to location events of the same
     animal/track using recording timestamps for alignment. Location
@@ -143,9 +144,9 @@ the merging process. This option allows to store the ACC’s track
 attribute table for potential future use or reference. Default: `FALSE`.
 
 **Filter downloaded ACC data by time interval** (`acc_timefilter`): an
-integer defining the time interval, in minutes, for thinning the ACC
-data. Must be between 0 (no filtering) and 30. Unit: `minutes`; default:
-`0`
+integer defining the time interval, in minutes, for thinning the
+temporal resolution of the downloaded ACC data. Must be between 0 (no
+filtering) and 30. Unit: `minutes`; default: `0`
 
 ### Most common errors
 
@@ -209,10 +210,10 @@ using the `'latest'` merging rule.
 output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = 'latest') 
 ```
 
-    [INFO: 2023-10-25 10:42:19] Collecting details about input data
-    [INFO: 2023-10-25 10:42:19] Checking ACC data availability
-    [INFO: 2023-10-25 10:42:19] Downloading ACC data for each animal
-    [INFO: 2023-10-25 10:42:26] 
+    [INFO: 2023-10-25 15:35:36] Collecting details about input data
+    [INFO: 2023-10-25 15:35:36] Checking ACC data availability
+    [INFO: 2023-10-25 15:35:36] Downloading ACC data for each animal
+    [INFO: 2023-10-25 15:35:42] 
 
     ====== Summary of downloaded ACC data =======
 
@@ -227,14 +228,14 @@ output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = 'latest')
           <int>
     1       174
 
-    [INFO: 2023-10-25 10:42:26] Processing downloaded Accelerometer data
-    [INFO: 2023-10-25 10:42:27] Merging ACC data to location data
-    [INFO: 2023-10-25 10:42:27] Preparing data for output
+    [INFO: 2023-10-25 15:35:42] Processing downloaded Accelerometer data
+    [INFO: 2023-10-25 15:35:42] Merging ACC data to location data
+    [INFO: 2023-10-25 15:35:42] Preparing data for output
 
     Joining with `by = join_by(individual_id, sensor_type_ids,
     individual_local_identifier, study_id, i_have_download_access)`
 
-    [INFO: 2023-10-25 10:42:27] Done! App has finished all its tasks
+    [INFO: 2023-10-25 15:35:42] Done! App has finished all its tasks
 
 The output data is a `move2` location object, where the merged
 Accelerometer (ACC) data is provided as `tibble` objects nested in

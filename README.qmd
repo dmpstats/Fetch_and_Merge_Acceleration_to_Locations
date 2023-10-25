@@ -44,11 +44,12 @@ nested format (burst of consecutive AAC values stored per row). In this step:
     are also added as data attributes. 
   
     - ACC data can optionally be thinned down to only retain a single ACC burst
-    event within a given time interval via the parameter `acc_timefilter` (details
-    in the Settings section below). This feature can be useful to avoid long
-    computations, and potentially lack of memory issues, when processing
-    high-frequency ACC data (e.g. 1 burst every couple of seconds).
-
+    event within a given time interval via the parameter `acc_timefilter` (or
+    details in the [Parameters](#parameters) section below). This feature can be
+    useful to avoid long computations, and potentially lack of memory issues,
+    when processing high-frequency ACC data (e.g. 1 burst every couple of
+    seconds).
+test
 
 5. Merge processed ACC events to location events of the same animal/track using
 recording timestamps for alignment. Location event times act as reference
@@ -142,8 +143,9 @@ option allows to store the ACC's track attribute table for potential future use
 or reference. Default: `FALSE`.
 
 **Filter downloaded ACC data by time interval** (`acc_timefilter`): an integer
-defining the time interval, in minutes, for thinning the ACC data. Must be
-between 0 (no filtering) and 30. Unit: `minutes`; default: `0`
+defining the time interval, in minutes, for thinning the temporal resolution of
+the downloaded ACC data. Must be between 0 (no filtering) and 30. Unit:
+`minutes`; default: `0`
 
 
 
