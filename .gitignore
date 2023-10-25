@@ -13,3 +13,13 @@ dev/developing_acc_to_loc_app.html
 dev/developing_acc_to_loc_app.qmd
 dev/developing_acc_to_loc_app.qmd
 dev/developing_acc_to_loc_app.qmd
+data/raw/gps_high_freq.rds
+data/raw/gps_low_freq.rds
+data/raw/gps_mixed_acc.rds
+data/raw/gps_test_workflow_app_output.rds
+data/raw/gps_vult_gaia.rds
+data/raw/gps_vult_nam.rds
+data/raw/gps_vult_sa.rds
+data/raw/gps_without_acc.rds
+dev/vult_nam_large.rds
+tests/testthat/data/acc_testsets.rds
