@@ -381,15 +381,10 @@ snap_times_to_timeline <- function(timeline,
   if(is.unsorted(timeline, na.rm = TRUE)) stop("`timeline` must be ordered")
   match.arg(rule)
  
-  #' Matrix of differences between the two time vectors
-  #' output dims: nrow = length(timepoints), ncol = length(timeline)
-  diffs <- outer(
-    timepoints, 
-    timeline, 
-    \(x, y) as.numeric(difftime(x, y, units = "secs"))
-  )
+  diffs <- outer(as.numeric(timepoints), as.numeric(timeline), "-")
   
   # indices of timeline points to which timepoints are allocated to
+  # TODO: Add tryCatch() to provide more informative feedback to user if there is an error due to failure in memory allocation
   tmln_idx <- switch(
     rule,
     "nearest" = max.col(1/abs(diffs), ties.method = "first"),
@@ -402,7 +397,6 @@ snap_times_to_timeline <- function(timeline,
     tmln_idx
   )
 }
-
 
 
 
