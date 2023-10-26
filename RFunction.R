@@ -381,6 +381,7 @@ snap_times_to_timeline <- function(timeline,
   if(is.unsorted(timeline, na.rm = TRUE)) stop("`timeline` must be ordered")
   match.arg(rule)
  
+  #' Matrix of differences between the two time vectors (numeric format is more memory efficient)
   diffs <- outer(as.numeric(timepoints), as.numeric(timeline), "-")
   
   # indices of timeline points to which timepoints are allocated to
