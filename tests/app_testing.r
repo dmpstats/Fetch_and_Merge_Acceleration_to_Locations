@@ -23,13 +23,14 @@ pwd <- Sys.getenv("vult_pwd")
 
 #options(pillar.width = Inf)
 
+# helper function to check if acc was merged to locations correctly (based on) timestamps)
+source("tests/testthat/check_snapped_times.r")
 
 # ------------------------- #
 #  Automated Unit testing  
 # ------------------------- #
 
 testthat::test_file("tests/testthat/test_RFunction.R")
-
 
 
 
@@ -92,11 +93,20 @@ run_sdk(test_inputs$gps_vult_sa, usr, pwd)
 output <- readRDS("data/output/output.rds"); output
 artifact_acc_dwnld <- readRDS("data/output/downloaded_acc_data.rds"); artifact_acc_dwnld
 
+check_merged_times(output, rule = "latest") |> 
+  pull(test) |> 
+  all(na.rm = TRUE)
+
 
 # ----- AVulture SOP Namibia vultures  ----------
 run_sdk(test_inputs$gps_vult_nam, usr, pwd)
 output <- readRDS("data/output/output.rds"); output
 artifact_acc_dwnld <- readRDS("data/output/downloaded_acc_data.rds"); artifact_acc_dwnld
+
+check_merged_times(output, rule = "latest") |> 
+  pull(test) |> 
+  all(na.rm = TRUE)
+
 
 
 # ----- GAIA vultures from africa  ----------------
@@ -104,11 +114,19 @@ run_sdk(test_inputs$gps_vult_gaia, usr, pwd)
 output <- readRDS("data/output/output.rds"); output
 artifact_acc_dwnld <- readRDS("data/output/downloaded_acc_data.rds"); artifact_acc_dwnld
 
+check_merged_times(output, rule = "latest") |> 
+  pull(test) |> 
+  all(na.rm = TRUE)
+
 
 # ----- high frequency ACC  ----------
 run_sdk(test_inputs$gps_high_freq, usr, pwd)
 output <- readRDS("data/output/output.rds"); output
 output$acc_dt[[1]]
+
+check_merged_times(output, rule = "latest") |> 
+  pull(test) |> 
+  all(na.rm = TRUE)
 
 
 # ----- low frequency ACC  ----------
@@ -163,6 +181,11 @@ output <- readRDS("data/output/output.rds"); output
 # Merging rule
 run_sdk(test_inputs$gps_vult_nam, usr, pwd, merging_rule = "nearest")
 output <- readRDS("data/output/output.rds"); output
+
+check_merged_times(output, rule = "nearest") |> 
+  pull(test) |> 
+  all(na.rm = TRUE)
+
 
 
 # store acc track info

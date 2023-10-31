@@ -128,11 +128,13 @@ test_that("rFunction's option `store_acc_track_info` works", {
 
 
 
+
 # `merge_acc_to_loc`============================================================
 test_that("Acc data is merged to location data as expected", {
   
   local_edition(3) # required for `expect_snapshot()`
   withr::local_options(pillar.width = 1000) # needed to keep output consistency for `expect_snapshot()`
+  source("check_snapped_times.r")
   
   set.seed(100)
   acc <- process_acc(acc_testsets$nested_XYZ_raw)
@@ -151,6 +153,13 @@ test_that("Acc data is merged to location data as expected", {
   
   expect_snapshot(merged_nearest)
   
+  expect_true(
+    merge_acc_to_loc(acc, loc, merging_rule = "nearest") |> 
+      check_merged_times(rule = "nearest") |> 
+      pull(test) |> 
+      all()
+  )
+  
   
   # merging rule: "latest"
   merged_latest <- merge_acc_to_loc(acc, loc, merging_rule = "latest") |> 
@@ -162,7 +171,14 @@ test_that("Acc data is merged to location data as expected", {
     dplyr::select(event_id, acc_dt, acc_min_time, acc_max_time)
   
   expect_snapshot(merged_latest)
-
+  
+  expect_true(
+    merge_acc_to_loc(acc, loc, merging_rule = "latest") |> 
+      check_merged_times(rule = "latest") |> 
+      pull(test) |> 
+      all()
+  )
+  
   
   # location events with no ACC data have null in list-column `acc_dt`
   merged <- merge_acc_to_loc(acc[c(20:40, 70:90), ], loc, merging_rule = "latest") |> 
@@ -170,7 +186,14 @@ test_that("Acc data is merged to location data as expected", {
     dplyr::as_tibble()
   
   expect_snapshot(merged)
-
+  
+  expect_true(
+    merged |> 
+      check_merged_times(rule = "latest") |> 
+      pull(test) |> 
+      all(na.rm = TRUE)
+  )
+  
 })
 
 
@@ -203,30 +226,94 @@ test_that("No data is lost after acc to location merging", {
 test_that("time-points are correclty merged to a reference timeline", {
   
   local_edition(3)
+  source("check_snapped_times.r")
   
   tmln <- seq(as.POSIXct("2022-01-01 00:00:00"), as.POSIXct("2022-01-01 00:02:00"), by = "20 secs")
   tmpts <- seq(as.POSIXct("2022-01-01 00:00:01"), as.POSIXct("2022-01-01 00:02:00"), by = "10 secs")
+  tmpts_matching <- tmpts - 1
+  tmpts_unordered <- sample(tmpts, replace = TRUE)
+  tmpts_gapped <- tmpts[-c(4:8)]
   
-  # rule: 'nearest'
+  # rule: 'nearest' ------------------------------------
   out_nearest <- snap_times_to_timeline(timeline = tmln, timepoints = tmpts, rule = "nearest")
   
   expect_snapshot(
     data.frame(
       timeline = tmln[out_nearest$tmln_idx], 
-      tmpoints = tmpts[out_nearest$tmpt_idx])
+      tmpoints = tmpts[out_nearest$tmpt_idx]))
+  
+  expect_true(
+    check_snapped_times(tmln, tmpts, out_nearest, "nearest")  |> 
+      dplyr::pull(test) |> 
+      all()
   )
   
-  # rule: 'latest'
+  # with matching times
+  out_nearest <- snap_times_to_timeline(timeline = tmln, timepoints = tmpts_matching, rule = "nearest")
+  expect_true(
+    check_snapped_times(tmln, tmpts_matching, out_nearest, "nearest")  |> 
+      dplyr::pull(test) |> 
+      all()
+  )
+  
+  # unordered timepoints
+  out_nearest <- snap_times_to_timeline(timeline = tmln, timepoints = tmpts_unordered, rule = "nearest")
+  expect_true(
+    check_snapped_times(tmln, tmpts_unordered, out_nearest, "nearest")  |> 
+      dplyr::pull(test) |> 
+      all()
+  )
+  
+  # gaps in timepoints
+  out_nearest <- snap_times_to_timeline(timeline = tmln, timepoints = tmpts_gapped, rule = "nearest")
+  expect_true(
+    check_snapped_times(tmln, tmpts_gapped, out_nearest, "nearest")  |> 
+      dplyr::pull(test) |> 
+      all()
+  )
+  
+  # rule: 'latest' --------------------------------
   out_latest <- snap_times_to_timeline(timeline = tmln, timepoints = tmpts, rule = "latest")
   
-  expect_snapshot(
-    data.frame(
-      timeline = tmln[out_latest$tmln_idx], 
-      tmpoints = tmpts[out_latest$tmpt_idx])
+  expect_snapshot(data.frame(
+    timeline = tmln[out_latest$tmln_idx],  
+    tmpoints = tmpts[out_latest$tmpt_idx]))
+  
+  
+  expect_true(
+    check_snapped_times(tmln, tmpts, out_latest, "latest") |> 
+    dplyr::pull(test) |> 
+      all()
   )
   
+  # with matching times
+  out_latest <- snap_times_to_timeline(timeline = tmln, timepoints = tmpts_matching, rule = "latest")
+  expect_true(
+    check_snapped_times(tmln,tmpts_matching, out_latest, "latest")  |> 
+      dplyr::pull(test) |> 
+      all()
+  )
   
+  # unordered timepoints
+  out_latest <- snap_times_to_timeline(timeline = tmln, timepoints = tmpts_unordered, rule = "latest")
+  expect_true(
+    check_snapped_times(tmln,tmpts_unordered, out_latest, "latest")  |> 
+      dplyr::pull(test) |> 
+      all()
+  )
+  
+  # gaps in timepoints
+  out_latest <- snap_times_to_timeline(timeline = tmln, timepoints = tmpts_gapped, rule = "latest")
+  expect_true(
+    check_snapped_times(tmln,tmpts_gapped, out_latest, "latest")  |> 
+      dplyr::pull(test) |> 
+      all()
+  )
 })
+
+
+
+
 
 
 
