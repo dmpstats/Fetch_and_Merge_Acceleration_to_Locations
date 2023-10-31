@@ -228,7 +228,7 @@ rFunction = function(data,
       .progress = TRUE)
     )
   
-  # Remind user on thinning of dowloaded ACC using time filter
+  # Remind user on thinning of downloaded ACC using time filter
   if(acc_timefilter > 0){
     logger.info(
       paste0("Downloaded ACC data thinned to a time interval of ", acc_timefilter, " mins")
@@ -351,7 +351,7 @@ merge_acc_to_loc <- function(.acc, .loc, merging_rule){
     # merge acc data to each event in location data. Need to populate
     # list column first so that indexing works
     .loc$acc_dt <- list(NULL)
-    .loc$acc_dt[unique(time_mapping$tmln_idx)] <- acc_ls
+    .loc$acc_dt[na.omit(unique(time_mapping$tmln_idx))] <- acc_ls   # na.omit to deal with missing timestamps (if any)
     return(.loc)
     
   }else{
@@ -373,32 +373,99 @@ merge_acc_to_loc <- function(.acc, .loc, merging_rule){
 #'    - `latest`: allocates each time-point to the latest timeline element occurring 
 #'    before the time-point
 #' 
+#' Taking a more efficient (speed-wise and memory-wise)  approach by binding timeline and
+#' timepoints and then sorting and indexing to apply the merging rules. Previous
+#' approach of computing the difference matrix was very expensive in memory
+#' allocation and, on far-sight, way too crude when dealing with inputs covering
+#' weeks of data
+
 snap_times_to_timeline <- function(timeline, 
                                    timepoints, 
                                    rule = c("nearest", "latest")){
   
   # input validation
   if(is.unsorted(timeline, na.rm = TRUE)) stop("`timeline` must be ordered")
+  
   match.arg(rule)
- 
-  #' Matrix of differences between the two time vectors (numeric format is more memory efficient)
-  diffs <- outer(as.numeric(timepoints), as.numeric(timeline), "-")
   
-  # indices of timeline points to which timepoints are allocated to
-  # TODO: Add tryCatch() to provide more informative feedback to user if there is an error due to failure in memory allocation
-  tmln_idx <- switch(
-    rule,
-    "nearest" = max.col(1/abs(diffs), ties.method = "first"),
-    "latest" = max.col(1/diffs, ties.method = "first")
-  )
+  if(min(timepoints, na.rm = TRUE) < min(timeline, na.rm = TRUE) 
+     | max(timepoints, na.rm = TRUE) > max(timeline, na.rm = TRUE)){
+    stop("timepoints must be contained between range(timeline)")
+  }
   
-  # linked table
-  tibble(
-    tmpt_idx = 1:length(tmln_idx),
-    tmln_idx
-  )
+  # timeline matrix, with flag for timeline
+  tmln_mtx <- matrix(
+    c(rep(1L, length(timeline)), 1L:length(timeline), timeline), 
+    ncol = 3, 
+    byrow = FALSE, 
+    dimnames = list(NULL, c("is.tl", "idx", "t")))
+  
+  # timepoint matrix, with flag for timeline
+  tpts_mtx <- matrix(
+    c(rep(0L, length(timepoints)), 1L:length(timepoints), timepoints), 
+    ncol = 3, byrow = FALSE, dimnames = list(NULL, c("is.tl", "idx", "t")))
+  
+  # bind matrices
+  t_mtx <- rbind(tmln_mtx, tpts_mtx)
+  # sort by time and timeline flag
+  t_mtx <- t_mtx[order(t_mtx[, "t"], -t_mtx[, "is.tl"]), ]
+  
+  # add end row to absorb last tp value when tp == tl
+  t_mtx <- rbind(t_mtx, c(1, nrow(tmln_mtx)+1, max(tmln_mtx[, "t"])))
+  
+  # create sub-table with indices for consecutive timeline pairings
+  tmln_idx <- which(t_mtx[, "is.tl"] == 1)
+  tmln_idx_mtx <- matrix(c(tmln_idx, lead(tmln_idx)), ncol = 2, byrow = FALSE)
+  tmln_idx_mtx <- tmln_idx_mtx[-nrow(tmln_idx_mtx), ] # drop last row as its not relevant
+  
+  # iterate by row, i.e. over indices of each pair of consecutive timelines
+  out_list <- apply(tmln_idx_mtx, 1, \(x){
+    
+    consecutive_idxs <- (x[[2]] - x[[1]]) == 1
+    
+    if(!consecutive_idxs){
+      
+      if(rule == "latest"){
+        
+        tp_idx <- t_mtx[(x[[1]]+1):(x[[2]]-1), "idx"]
+        
+        tl_idx <- rep(t_mtx[x[[1]], "idx"], length(tp_idx))
+        
+      }else if(rule == "nearest"){
+        
+        tp_within <- t_mtx[(x[[1]]+1):(x[[2]]-1), c("idx", "t"), drop=FALSE]
+        
+        midpt <- (t_mtx[x[[1]], "t"] + t_mtx[x[[2]], "t"])/2
+        
+        below_midpt <- tp_within[, "t"] <= midpt
+        
+        tp_idx <- tp_within[, "idx"]
+        
+        tl_idx <- ifelse(below_midpt, t_mtx[x[[1]], "idx"], t_mtx[x[[2]], "idx"])
+        
+      }
+      matrix(c(tp_idx, tl_idx), ncol = 2, byrow = FALSE)
+    }
+    
+  }, simplify = FALSE)
+  
+  # bind matrices
+  out <- do.call(rbind, out_list)
+  colnames(out) <- c("tmpt_idx", "tmln_idx")
+  
+  # test that nrow of indices is the same as length of input timepoints, give 
+  # that there are no NAs and timepoints are whithin timeline's timespan
+  if(nrow(out) != length(timepoints)){
+    stop("Something went wrong! Please get in touch with App maintainers")
+  }
+  
+  # convert tibble to allow for easier colname subsetting
+  as_tibble(out) |> 
+    mutate(
+      tmpt_idx = as.integer(tmpt_idx),
+      tmln_idx = as.integer(tmln_idx)
+    )
 }
-
 
 
 #' /////////////////////////////////////////////////////////////////////////////
