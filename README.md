@@ -48,7 +48,7 @@ can be outlined as follows:
       section below). This feature can be useful to avoid long
       computations, and potentially lack of memory issues, when
       processing high-frequency ACC data (e.g. 1 burst every couple of
-      seconds). test
+      seconds).
 
 5.  Merge processed ACC events to location events of the same
     animal/track using recording timestamps for alignment. Location
@@ -105,14 +105,20 @@ can be outlined as follows:
 
 ### Input data
 
-`move2` location object
+`move2` location object.
 
 ### Output data
 
-`move2` location object - see point 6. of
-[Documentation](#documentation) for additional context. Section [Using
-the Output data](#using-the-output-data) demonstrates how to access and
-manipulate the merged data in the output object.
+`move2` location object. See point 6. of [Documentation](#documentation)
+for additional context.
+
+Section [Using the Output data](#using-the-output-data) demonstrates how
+to access and manipulate the merged data in the output object.
+
+`NULL` entries in column `acc_dt` indicate no ACC data associated with
+the location events (given the chosen merging rule) or that there is no
+ACC data collected for that animal (i.e. no accelerometer sensor on the
+tag).
 
 ### Artefacts
 
@@ -210,10 +216,10 @@ using the `'latest'` merging rule.
 output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = 'latest') 
 ```
 
-    [INFO: 2023-10-25 15:35:36] Collecting details about input data
-    [INFO: 2023-10-25 15:35:36] Checking ACC data availability
-    [INFO: 2023-10-25 15:35:36] Downloading ACC data for each animal
-    [INFO: 2023-10-25 15:35:42] 
+    [INFO: 2023-10-31 10:34:34] Collecting details about input data
+    [INFO: 2023-10-31 10:34:34] Checking ACC data availability
+    [INFO: 2023-10-31 10:34:34] Downloading ACC data for each animal
+    [INFO: 2023-10-31 10:34:39] 
 
     ====== Summary of downloaded ACC data =======
 
@@ -228,14 +234,14 @@ output <- rFunction(data, usr = usr, pwd = pwd, merging_rule = 'latest')
           <int>
     1       174
 
-    [INFO: 2023-10-25 15:35:42] Processing downloaded Accelerometer data
-    [INFO: 2023-10-25 15:35:42] Merging ACC data to location data
-    [INFO: 2023-10-25 15:35:42] Preparing data for output
+    [INFO: 2023-10-31 10:34:39] Processing downloaded Accelerometer data
+    [INFO: 2023-10-31 10:34:39] Merging ACC data to location data
+    [INFO: 2023-10-31 10:34:39] Preparing data for output
 
     Joining with `by = join_by(individual_id, sensor_type_ids,
     individual_local_identifier, study_id, i_have_download_access)`
 
-    [INFO: 2023-10-25 15:35:42] Done! App has finished all its tasks
+    [INFO: 2023-10-31 10:34:40] Done! App has finished all its tasks
 
 The output data is a `move2` location object, where the merged
 Accelerometer (ACC) data is provided as `tibble` objects nested in
