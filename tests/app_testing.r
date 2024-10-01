@@ -26,12 +26,36 @@ pwd <- Sys.getenv("vult_pwd")
 # helper function to check if acc was merged to locations correctly (based on) timestamps)
 source("tests/testthat/check_snapped_times.r")
 
+
+
 # ------------------------- #
 #  Automated Unit testing  
 # ------------------------- #
 
 testthat::test_file("tests/testthat/test_RFunction.R")
 
+
+
+# ------------------------- #
+#  Interactive testing 
+# ------------------------- #
+
+# testing handling of missing sensor data
+out <- rFunction(
+  data = test_inputs$gps_vult_nam |> mt_as_event_attribute(sensor_type_ids), 
+  usr = usr, 
+  pwd = pwd,
+  acc_timefilter = 3
+)
+
+
+
+out <- rFunction(
+  data = test_inputs$gps_without_acc, 
+  usr = usr, 
+  pwd = pwd,
+  acc_timefilter = 3
+)
 
 
 # ----------------------- #
