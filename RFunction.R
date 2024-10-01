@@ -193,6 +193,24 @@ rFunction = function(data,
                   is_acc_collected, acc_dwn_start_time, acc_dwn_end_time), 
         .f = \(std, ind, acc_collected, start, end){
           if(acc_collected){
+            
+            call <- caller_env()
+            retry <- TRUE
+            req_cntr <- 0
+            issue <- NULL
+            
+            while(retry){
+              
+              faulty_req <- FALSE
+              req_cntr <- req_cntr + 1
+              
+              if(req_cntr == 1){
+                logger.info(paste0("  |> Track ", ind, ": submit request to Movebank"))
+              } else{
+                logger.info(paste0("      |- re-submit request [attempt # ", req_cntr, "]"))
+              }
+              
+              dt <- try_fetch(
                 movebank_download_study(
                   study_id = std,
                   sensor_type_id = "acceleration",
@@ -200,16 +218,65 @@ rFunction = function(data,
                   timestamp_start = start,
                   timestamp_end = end
                 ),
+                move2_error_no_data_found = function(cnd) NULL,
+                error = function(cnd){
+                  if(conditionMessage(cnd) == "is.numeric(x) is not TRUE"){
+                    faulty_req <<- TRUE
+                    issue <<- "non_numeric"
+                    NULL
+                  } else if("path_to_connection(x)" %in% deparse(cnd$call)){
+                    faulty_req <<- TRUE
+                    issue <<- "path_to_connection"
+                    NULL
+                  # }else if(cnd_message(cnd) == "Could not resolve host: www.movebank.org"){
+                  #   faulty_req <<- TRUE
+                  #   issue <<- "host_unresolved"
+                  #   NULL
+                  }else{
+                    abort("Issue found while downloading data from Movebank.", parent = cnd, call = call)
+                  }
+                }
                 # move2_error_movebank_api_license_not_accepted = function(cnd){
                 #   warning("ACC download failed because user has not accepted api license terms of the study")
                 #   NULL
                 # }
-              ),
-              warning = function(cnd){
-                cnd_msg <- conditionMessage(cnd)
-                cnd_exp <- "no non-missing arguments to m(in|ax); returning -?Inf"
-                if(grepl(cnd_exp, cnd_msg)) rlang::cnd_muffle(cnd)
-              })
+              )
+              
+              if(faulty_req){
+                
+                # write(
+                #   paste0("Pinging '", issue,"' issue @ ", now(), ": request ", req_cntr), 
+                #   file = "error_ping.txt",
+                #   append = TRUE
+                # )
+                
+                if(req_cntr <= 15){
+                  
+                  if(issue ==  "non_numeric"){
+                    logger.warn("      |- Invalid data type retrieved. Request will be retried after a waiting period")
+                  }else if(issue == "path_to_connection"){
+                    logger.warn("      |- 'xml2' issue found in the retrieved data. Request will be retried after a waiting period.")
+                  }else if(issue == "host_unresolved"){
+                    logger.warn("      |- Movebank host unresolved. Request will be retried after a waiting period.")
+                  }
+                  
+                  if(between(req_cntr, 1, 2)) hold_next_attempt(5)
+                  if(between(req_cntr, 3, 6)) hold_next_attempt(30)
+                  if(between(req_cntr, 7, 11)) hold_next_attempt(60)
+                  if(between(req_cntr, 12, 23)) hold_next_attempt(2*60)
+                  
+                }else{
+                  rlang::abort(
+                    "Failed multiple attempts to download data from Movebank over a period of 30+ mins. Exiting the App with an error.",
+                    parent = cnd
+                  )
+                }
+              }else{
+                retry <- FALSE
+              }
+            }
+            return(dt)
+            
           } else NULL
         })
     )
@@ -814,6 +881,30 @@ time_to_decimal_hours <- function(datetime){
   minute = lubridate::minute(datetime)
   secs = lubridate::second(datetime)
   hour + minute/60 + secs/3600
+}
+
+
+
+#' /////////////////////////////////////////////////////////////////////////////
+#' Suspends execution of next download attempt by `time` seconds
+#' 
+hold_next_attempt <- function(time = 10){
+  
+  for(j in 1:time){
+    Sys.sleep(1)
+    
+    msg <- sprintf(
+      paste0("Time left before next attempt: %", floor(log10(time)) + 1, "i secs"), 
+      time - j
+    )
+      
+      # cat('\r', msg)
+      # flush.console()
+      
+      message('\r', msg, appendLF = FALSE)
+  }
+
+  cat("\n")
 }
 
 
