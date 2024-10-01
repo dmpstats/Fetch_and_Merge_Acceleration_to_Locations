@@ -17,14 +17,15 @@ rFunction = function(data,
                      acc_timefilter = 0){
   
   # Input validation --------------------------------------------------------
-  # These assertions are a bit redundant given definitions in appspec.json and
+  
+  merging_rule <- rlang::arg_match(merging_rule)
+  
+  # The following assertions are a bit redundant given definitions in appspec.json and
   # checks done at the GUI level. HOWEVER, they're useful for local use and testing
   assertthat::assert_that(mt_is_move2(data))
   assertthat::assert_that(assertthat::is.string(usr))
   assertthat::assert_that(assertthat::is.string(pwd))
   assertthat::assert_that(is.logical(store_acc_track_info))
-  assertthat::assert_that(assertthat::is.string(merging_rule))
-  match.arg(merging_rule)
   assertthat::assert_that(assertthat::is.number(acc_timefilter))
   assertthat::assert_that(
     dplyr::between(acc_timefilter, 0, 30),
