@@ -72,9 +72,34 @@ rFunction = function(data,
   # AAC availability checks ---------------------------------------------------
   logger.info("Checking ACC data availability")
   
-  ## Is ACC data collected? 
-  trk_dt$is_acc_collected <- grepl("acceleration", trk_dt[[sens_id_col]], 
-                                   ignore.case = TRUE)
+  ## Retrieve sensor info, if absent in data
+  if(length(sens_id_col) == 0){
+    
+    logger.warn("Sensor information is missing in the input data. Fetching required data from Movebank")
+    
+    # write(paste0("Pinging issue with missing sensor info ", now()), file = "error_ping.txt", append = TRUE)
+    
+    sensor_info <- trk_dt |> 
+      dplyr::group_split(.data[[study_id_col]]) |> 
+      purrr::map(\(x){
+        movebank_download_deployment(
+          study_id = unique(x[[study_id_col]]), 
+          individual_id = x[[ind_id_col]]
+        )}
+      ) |> purrr::list_rbind() 
+    
+    logger.info(paste0("  |- Sensor data retrieved with success"))
+    
+    sens_id_col <- grep("^sensor(_|.)type(_|.)ids$", names(sensor_info), value = TRUE)
+    deploy_id_col <- grep("^deployment_|.)id", names(sensor_info), value = TRUE)
+    
+    sensor_info <- sensor_info |> 
+      dplyr::select(all_of(c(study_id_col, ind_id_col, deploy_id_col, sens_id_col)))
+    
+    trk_dt <- trk_dt |> 
+      left_join(sensor_info, by = c(study_id_col, ind_id_col, deploy_id_col))
+  } 
+  
   
   ## Fetch download permissions if info absent in input data
   if(length(dwnld_perm_id_col) == 0){  
@@ -89,6 +114,11 @@ rFunction = function(data,
     trk_dt[[dwnld_perm_id_col]] <- rep(dwnld_perm, each = rle(trk_dt[[study_id_col]])$lengths)
   }
   
+  
+  
+  ## Is ACC data collected? 
+  trk_dt$is_acc_collected <- grepl("acceleration", trk_dt[[sens_id_col]], 
+                                   ignore.case = TRUE)
 
   # Escape if no ACC for any of the animals
   if(all(!trk_dt$is_acc_collected)){
