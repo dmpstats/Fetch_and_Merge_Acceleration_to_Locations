@@ -10,15 +10,11 @@ library("sf")
 library("rlang")
 library("keyring")
 
-## The parameter `data` is reserved for the data object passed on from the
-## previous app - it MUST be of IO type move2_loc
-
 rFunction = function(data, 
                      usr, pwd, 
                      merging_rule = c("nearest", "latest"), 
                      store_acc_track_info = FALSE,
                      acc_timefilter = 0){
-  
   
   # Input validation --------------------------------------------------------
   # These assertions are a bit redundant given definitions in appspec.json and
@@ -59,8 +55,8 @@ rFunction = function(data,
   time_id_col <- mt_time_column(data)
   event_id_col <- grep("event(_|.)id", trk_dt_colnames, value = TRUE)
   
-
   
+ 
   # Input data prep ------------------------------------------------------------
   data <- data |> 
     # set event and track datasets underlying move2 object as tibble (tidier printing)
@@ -106,6 +102,8 @@ rFunction = function(data,
             class = "warn_acc_not_collected")
 
     data_output <- data |>  mt_set_track_data(trk_dt) |>  mutate(acc_dt = list(NULL))
+    
+    logger.info("Done! App has finished all its tasks.")
     return(data_output)
   }
   
@@ -124,6 +122,8 @@ rFunction = function(data,
     
     
     data_output <- data |> mt_set_track_data(trk_dt) |> mutate(acc_dt = list(NULL))
+    
+    logger.info("Done! App has finished all its tasks.")
     return(data_output)
   }
   
@@ -151,7 +151,7 @@ rFunction = function(data,
   
   
   # Download ACC data ----------------------------------------------------------
-  logger.info("Downloading ACC data for each animal")
+  logger.info("Downloading ACC data for each track")
   
   ## Iterate over rows and nest downloaded data. 
   ## NOTE: warning thrown after data is downloaded due to issue in
@@ -318,7 +318,7 @@ rFunction = function(data,
   
   
   # EOF ------------------------------------------------------------------------
-  logger.info("Done! App has finished all its tasks")
+  logger.info("Done! App has finished all its tasks.")
   
   return(data_output)
 }
@@ -610,19 +610,6 @@ process_acc <- function(data, time_filter = 0){
   }else{
     stop("Unable to determine the format of the ACC data.")
   }
-  
-  # # Summarise and add relevant attributes  ----------------------------
-  # data <- data |>
-  #   dplyr::mutate(
-  #     mean = purrr::map(acc_bursts, ~ apply(., 2, mean, na.rm = TRUE)),
-  #     var = purrr::map(acc_bursts, ~ apply(., 2, var, na.rm = TRUE))
-  #   ) |>
-  #   tidyr::unnest_wider(c(mean, var), names_sep = "_") |>
-  #   # add variables required for binding to location data
-  #   dplyr::mutate(
-  #     yearmonthday = gsub( "-", "", substr(timestamp, 1, 10)),
-  #     hour_dec = time_to_decimal_hours(timestamp)
-  #   )
 
   return(data)
 }
