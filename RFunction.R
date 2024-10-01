@@ -250,7 +250,7 @@ rFunction = function(data,
                 #   append = TRUE
                 # )
                 
-                if(req_cntr <= 15){
+                if(req_cntr <= 23){
                   
                   if(issue ==  "non_numeric"){
                     logger.warn("      |- Invalid data type retrieved. Request will be retried after a waiting period")
