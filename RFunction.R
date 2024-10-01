@@ -154,13 +154,6 @@ rFunction = function(data,
   logger.info("Downloading ACC data for each track")
   
   ## Iterate over rows and nest downloaded data. 
-  ## NOTE: warning thrown after data is downloaded due to issue in
-  ## movebank_download_study() when applied to accelerometer data, caused at
-  ## sf::st_as_sf() conversion with NAs in lat/lon. Issue raised with {move2} and
-  ## already solved in dev version. Warnings should not appear on the next
-  ## {move2} release. (https://gitlab.com/bartk/move2/-/issues/63). In the
-  ## meantime, use withCallingHandlers to muffle the specific warning.
-  ## TODO: Remove withCallingHandlers call once new release of {move2} is out
   acc <- acc_dwnld_info |> 
     dplyr::as_tibble() |> 
     dplyr::mutate(
@@ -169,8 +162,6 @@ rFunction = function(data,
                   is_acc_collected, acc_dwn_start_time, acc_dwn_end_time), 
         .f = \(std, ind, acc_collected, start, end){
           if(acc_collected){
-            withCallingHandlers(
-              tryCatch(
                 movebank_download_study(
                   study_id = std,
                   sensor_type_id = "acceleration",
@@ -178,7 +169,6 @@ rFunction = function(data,
                   timestamp_start = start,
                   timestamp_end = end
                 ),
-                move2_error_no_data_found = function(cnd) NULL#,
                 # move2_error_movebank_api_license_not_accepted = function(cnd){
                 #   warning("ACC download failed because user has not accepted api license terms of the study")
                 #   NULL
