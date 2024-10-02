@@ -76,9 +76,6 @@
         "name": "rlang"
       },
       {
-        "name": "utils"
-      },
-      {
         "name": "keyring"
       }
     ]
