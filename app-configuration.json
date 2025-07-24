@@ -1,6 +1,6 @@
 {
   "usr": "",
-  "pwd": "",
+  "pwd": "secret",
   "merging_rule": "latest",
   "store_acc_track_info": false,
   "acc_timefilter": 0

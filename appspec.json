@@ -4,15 +4,15 @@
       "id": "usr",
       "name": "Movebank username",
       "description": "Type-in the username of your Movebank account",
-      "defaultValue": "",
+      "defaultValue": null,
       "type": "STRING"
     },
     {
       "id": "pwd",
       "name": "Movebank password",
       "description": "Type-in the password of your Movebank account",
-      "defaultValue": "",
-      "type": "STRING"
+      "defaultValue": null,
+      "type": "SECRET"
     },
     {
       "id": "merging_rule",
