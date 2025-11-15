@@ -10,6 +10,7 @@ library("sf")
 library("rlang")
 library("keyring")
 
+
 rFunction = function(data, 
                      usr, pwd, 
                      merging_rule = c("nearest", "latest"), 
@@ -82,7 +83,7 @@ rFunction = function(data,
     sensor_info <- trk_dt |> 
       dplyr::group_split(.data[[study_id_col]]) |> 
       purrr::map(\(x){
-        movebank_download_deployment(
+        movebank_download_deployment_retry(
           study_id = unique(x[[study_id_col]]), 
           individual_id = x[[ind_id_col]]
         )}
@@ -108,7 +109,7 @@ rFunction = function(data,
     # performance so keeping it for the moment
     dwnld_perm <- sapply(
       study_id, 
-      \(x) movebank_download_study_info(study_id = x)$i_have_download_access
+      \(x) movebank_download_study_info_retry(study_id = x)$i_have_download_access
     )
     dwnld_perm_id_col <- "i_have_download_access"
     trk_dt[[dwnld_perm_id_col]] <- rep(dwnld_perm, each = rle(trk_dt[[study_id_col]])$lengths)
@@ -412,6 +413,31 @@ rFunction = function(data,
 }
 
 
+
+
+# Helper functions ------------------------------------------------------------
+
+
+#' /////////////////////////////////////////////////////////////////////////////
+#' Adverb functions that modify Movebank calling functions to retry on error
+ 
+# setting the retry rate, as an exponential back-off witha base of 5 sec, up to
+# 10 attempts
+# delay periods: 5*2^(1:8)
+# total retry period: sum(5*2^(1:8))/60
+rate <- purrr::rate_backoff(pause_base = 5, max_times = 8)
+
+movebank_download_deployment_retry <- purrr::insistently(
+  movebank_download_deployment, 
+  rate = rate, 
+  quiet = FALSE
+)
+
+movebank_download_study_info_retry <- purrr::insistently(
+  movebank_download_study_info,
+  rate = rate, 
+  quiet = FALSE
+)
 
 
 
