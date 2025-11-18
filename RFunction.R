@@ -9,6 +9,8 @@ library("assertthat")
 library("sf")
 library("rlang")
 library("keyring")
+library("xml2")
+
 
 
 rFunction = function(data, 
