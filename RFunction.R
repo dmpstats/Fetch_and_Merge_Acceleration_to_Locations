@@ -253,13 +253,7 @@ rFunction = function(data,
               )
               
               if(faulty_req){
-                
-                # write(
-                #   paste0("Pinging '", issue,"' issue @ ", now(), ": request ", req_cntr), 
-                #   file = "error_ping.txt",
-                #   append = TRUE
-                # )
-                
+
                 if(req_cntr <= 25){
                   
                   if(issue ==  "non_numeric"){
