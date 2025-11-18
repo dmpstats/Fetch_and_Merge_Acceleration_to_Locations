@@ -194,20 +194,112 @@ rFunction = function(data,
       acc_dt = purrr::pmap(
         .l = list(.data[[study_id_col]], .data[[ind_id_col]], 
                   is_acc_collected, acc_dwn_start_time, acc_dwn_end_time), 
-        .f = \(std, ind, acc_collected, start, end){
-          
+        .f = \(std, ind, acc_collected, start, end, call = caller_env()){
           if(acc_collected){
-            movebank_download_study_retry(
-              study_id = std,
-              sensor_type_id = "acceleration",
-              individual_id = ind,
-              timestamp_start = start,
-              timestamp_end = end
-            )
+            
+            retry <- TRUE
+            req_cntr <- 0
+            issue <- NULL
+            error_class <- NULL
+            
+            while(retry){
+              
+              faulty_req <- FALSE
+              req_cntr <- req_cntr + 1
+              
+              if(req_cntr == 1){
+                logger.info(paste0("  |> Track ", ind, ": submit request to Movebank"))
+              } else{
+                logger.info(paste0("      |- re-submit request [attempt # ", req_cntr, "]"))
+              }
+              
+              dt <- try_fetch(
+                movebank_download_study(
+                  study_id = std,
+                  sensor_type_id = "acceleration",
+                  individual_id = ind,
+                  timestamp_start = start,
+                  timestamp_end = end
+                ),
+                move2_error_no_data_found = function(cnd) NULL,
+                error = function(cnd){
+                  if(conditionMessage(cnd) == "is.numeric(x) is not TRUE"){
+                    faulty_req <<- TRUE
+                    issue <<- "non_numeric"
+                    NULL
+                  } else if("path_to_connection(x)" %in% deparse(cnd$call)){
+                    faulty_req <<- TRUE
+                    issue <<- "path_to_connection"
+                    NULL
+                  }else{
+                    # faulty_req <<- TRUE
+                    # issue <<- "unknown"
+                    # error_class <<- class(cnd)[1]
+                    # NULL
+
+                    abort(c(
+                      "Issue found while downloading data from Movebank.",
+                      x = sprintf("API returned an error of class `%s`.", class(cnd)[1])
+                    ),
+                    parent = cnd, 
+                    call = call
+                    )
+                  }
+                }
+                # move2_error_movebank_api_license_not_accepted = function(cnd){
+                #   warning("ACC download failed because user has not accepted api license terms of the study")
+                #   NULL
+                # }
+              )
+              
+              if(faulty_req){
+                
+                # write(
+                #   paste0("Pinging '", issue,"' issue @ ", now(), ": request ", req_cntr), 
+                #   file = "error_ping.txt",
+                #   append = TRUE
+                # )
+                
+                if(req_cntr <= 25){
+                  
+                  if(issue ==  "non_numeric"){
+                    logger.warn("      |- Invalid data type retrieved. Retrying request after a back-off period.")
+                  }else if(issue == "path_to_connection"){
+                    logger.warn("      |- 'xml2' issue found in the retrieved data. Retrying request after a back-off period.")
+                  }
+                  # else if(issue == "unknown"){
+                  #   logger.warn(
+                  #     paste0(
+                  #       "      |- Movebank's API returned an error of class '", 
+                  #       error_class, 
+                  #       "'. Retrying request after a back-off period."
+                  #     ))
+                  # }
+                  
+                  if(between(req_cntr, 1, 2)) hold_next_attempt(5)
+                  if(between(req_cntr, 3, 6)) hold_next_attempt(30)
+                  if(between(req_cntr, 7, 11)) hold_next_attempt(60)
+                  if(between(req_cntr, 12, 25)) hold_next_attempt(2*60)
+                  
+                }else{
+                  rlang::abort(
+                    c("Failed multiple attempts to download data from Movebank over a period of 30+ mins.",
+                      x = "Exiting the App before completion."
+                    ),
+                    call = call
+                  )
+                }
+              }else{
+                retry <- FALSE
+              }
+            }
+            return(dt)
+            
           } else NULL
         })
     )
   
+
   ## Add details on downloaded data
   acc <- acc |>
     dplyr::mutate(
@@ -365,11 +457,6 @@ movebank_download_study_info_retry <- purrr::insistently(
   quiet = FALSE
 )
 
-movebank_download_study_retry <- purrr::insistently(
-  movebank_download_study,
-  rate = rate, 
-  quiet = FALSE
-)
 
 
 #' /////////////////////////////////////////////////////////////////////////////
